@@ -1,0 +1,19 @@
+flowchart TB
+  CLI["CLI · argv, identity flag, exit code"]
+  App["ApService · validation, authority, inbox"]
+  Flow["Orchestrator · flow, approval, submit<br/>step journal and worker lease"]
+  CLI --> App --> Flow
+  Flow --> Evidence["Evidence<br/>retrieve, extract, ground"]
+  Flow --> Rules["Rules<br/>decimal checks and outcome"]
+  Flow --> Report["Report<br/>summary and cited rationale"]
+  Evidence --> Reads["Read adapters<br/>allowlisted index and fixture tools"]
+  Evidence --> Model["Model provider<br/>fake or Anthropic"]
+  Report --> Model
+  Flow --> Store[("Agent SQLite<br/>runs, events, approvals, outbox")]
+  Flow --> ERP[("ERP simulator<br/>unique posting key")]
+  classDef entry fill:#e8f1fa,stroke:#245170,color:#122e40
+  classDef domain fill:#e7f5ed,stroke:#307252,color:#183d2a
+  classDef adapter fill:#fff5df,stroke:#8d6330,color:#47391d
+  class CLI,App,Flow entry
+  class Evidence,Rules,Report domain
+  class Reads,Model,Store,ERP adapter

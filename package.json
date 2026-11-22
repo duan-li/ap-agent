@@ -9,6 +9,7 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
+    "build": "tsc -p tsconfig.build.json",
     "eval": "tsx src/entrypoints/cli.ts eval"
   },
   "dependencies": { "decimal.js": "^10.6.0", "zod": "^4.1.0", "tsx": "^4.20.0" },
