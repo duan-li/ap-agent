@@ -73,27 +73,48 @@ export function recommend(
       '/' +
       r.amount,
   );
-  const post = !!snapshot,
-    status = post ? 'AWAITING_APPROVAL' : 'COMPLETED';
+  for (const h of history.exact) record(h.recordId, 'matchedHistoryRecord', h.status, h.recordId);
+  const { indicators, exceptions } = decision;
+  if (indicators.length) {
+    record('bank-master', 'bankLast4', vendor.bankLast4, 'get_vendor_record:' + vendor.vendorId);
+    for (const s of e.signals.filter((s) => indicators.some((i) => i.evidence.includes(s.id)))) {
+      sourcedFacts.push({
+        id: s.id,
+        field: 'supplierEvidence',
+        value: s.value,
+        source: { type: 'ATTACHMENT', ref: s.ref, quote: s.quote },
+      });
+    }
+  }
+  const needsApproval = !!snapshot,
+    status = needsApproval ? 'AWAITING_APPROVAL' : 'COMPLETED';
   const roles = [decision.authority.role];
   return runResult.parse({
     runId,
     caseId: r.caseId,
     status,
-    decisionSummary: summary(status, post, roles, decision.unknowns, 'None'),
+    decisionSummary: summary(status, snapshot?.action === 'POST', roles, decision.unknowns, 'None'),
     proposal: {
       outcome: decision.outcome,
-      nextAction: post
+      nextAction: needsApproval
         ? { type: 'REQUEST_APPROVAL', roles, approvalId }
-        : { owner: 'Accounts Payable', action: 'Review invoice evidence' },
+        : {
+            owner: exceptions[0]?.owner ?? 'Accounts Payable',
+            action:
+              decision.outcome === 'ESCALATE_CONTROL_REVIEW'
+                ? 'Investigate supplier instructions'
+                : decision.unknowns.includes('invoiceLines')
+                  ? 'Request invoice line details'
+                  : 'Review invoice evidence',
+          },
     },
     sourcedFacts,
     calculations: decision.calculations,
     policyFindings: decision.findings,
-    inferences: [],
+    inferences: indicators,
     unknowns: decision.unknowns,
     assumptions: ['Approval amount includes GST (FIN-POL-003 §1)'],
-    exceptions: [],
+    exceptions,
     explanation,
     confidence: confidence(e, decision.unknowns),
     approvalSnapshot: snapshot,

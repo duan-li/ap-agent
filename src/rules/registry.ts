@@ -7,6 +7,9 @@ import { threeWayMatch } from './checks/threeWayMatch.ts';
 import { taxAndTotal } from './checks/taxAndTotal.ts';
 import { vendorActive } from './checks/vendorActive.ts';
 import { duplicate } from './checks/duplicate.ts';
+import { bankDetails } from './checks/bankDetails.ts';
+import { priceExceptions, reviewDate } from './exceptions.ts';
+import type { SupplierSignal } from '../evidence/extract.ts';
 import { tighten } from './outcome.ts';
 
 export const policies = [
@@ -20,7 +23,16 @@ export const policies = [
     ref: 'FIN-POL-003 v4.0 §2',
   },
 ] as const;
+export const duplicateQuery = 'exact match paid posted outcomes';
+export const bankQueries = [
+  'bank account changes',
+  'prohibited automation',
+  'fraud indicators',
+  'model limitations disable checks',
+];
 export interface Evidence {
+  asOf: string;
+  signals: SupplierSignal[];
   invoice: Extraction;
   po: ReturnType<ReadTools['po']> | null;
   vendor: ReturnType<ReadTools['vendor']>;
@@ -55,7 +67,7 @@ export function reconcile(r: WorkflowCase['request'], e: Evidence) {
       match.passed && po?.vendorId === r.vendor && po.currency === r.currency && goodIdentity,
     TAX_AND_TOTAL: tax.passed,
     VENDOR_ACTIVE: vendorActive(vendor),
-    DUPLICATE_CHECK: !duplicate(history),
+    DUPLICATE_CHECK: !history.exact.length,
     APPROVAL_REQUIREMENT: goodIdentity,
   };
   const evidenceIds = {
@@ -75,7 +87,7 @@ export function reconcile(r: WorkflowCase['request'], e: Evidence) {
   const unknowns = [...invoice.unknowns];
   if ((r.attachments?.length ?? 0) > 1 || invoice.suspicious)
     unknowns.push('Supplementary content requires review');
-  const findings = policies.map((p) => {
+  const findings: Review['policyFindings'] = policies.map((p) => {
     const chunk = e.chunks.find((c) => c.citation === p.ref && c.trust === 'authority');
     if (!chunk) unknowns.push('Missing policy for ' + p.id);
     return {
@@ -88,6 +100,87 @@ export function reconcile(r: WorkflowCase['request'], e: Evidence) {
   let outcome: Review['proposal']['outcome'] = 'APPROVE_FOR_POSTING';
   if (unknowns.length || findings.some((f) => !f.passed))
     outcome = tighten(outcome, 'HOLD_FOR_INFORMATION');
-  if (duplicate(history)) outcome = tighten(outcome, 'REJECT_DUPLICATE');
-  return { outcome, calculations, findings, authority, unknowns };
+  const nextReviewDate = reviewDate(e.asOf);
+  const exceptions = priceExceptions(match.calculations, nextReviewDate);
+  function finding(id: string, policy: string, evidence: string[], detail?: string) {
+    const chunk = e.chunks.find((c) => c.trust === 'authority' && c.citation === policy);
+    if (!chunk) unknowns.push('Missing policy for ' + id);
+    findings.push({
+      id: 'F-' + id,
+      passed: false,
+      evidence,
+      detail,
+      citation: chunk?.citation ?? 'UNSUPPORTED_BY_CORPUS',
+    });
+  }
+  const records = duplicate(history).map((h) => h.recordId);
+  if (records.length) {
+    finding('EXACT_DUPLICATE_MATCH', policies[3].ref, records);
+    finding('DUPLICATE_OUTCOME', 'FIN-POL-005 v2.8 §2', records);
+    exceptions.push({
+      code: 'DUPLICATE_RISK',
+      failedRule: 'EXACT_DUPLICATE_MATCH',
+      expected: 'No paid or posted match',
+      observed: records.join(', '),
+      owner: 'Accounts Payable',
+      nextReviewDate,
+      sources: records,
+    });
+    if (goodIdentity && vendorActive(vendor) && !unknowns.length)
+      outcome = tighten(outcome, 'REJECT_DUPLICATE');
+  }
+  const { claims, indicators } = bankDetails(e.signals, vendor.bankLast4);
+  if (claims.length) {
+    const { value: last4, id: ref } = claims[0]!;
+    const detail =
+      'attachment claims account ending ' + last4 + '; vendor master ends ' + vendor.bankLast4;
+    finding('BANK_CHANGE_UNVERIFIED', 'FIN-POL-004 v5.1 §2', [ref, 'bank-master'], detail);
+    finding('NO_AUTOMATED_BANK_UPDATE', 'FIN-POL-004 v5.1 §3', [ref]);
+    exceptions.unshift({
+      code: 'BANK_CHANGE',
+      failedRule: 'BANK_CHANGE_UNVERIFIED',
+      expected: vendor.bankLast4,
+      observed: last4,
+      owner: indicators.length >= 2 ? 'Financial Crime and Controls' : 'Vendor Governance',
+      nextReviewDate,
+      sources: [ref, 'bank-master'],
+    });
+    outcome = tighten(outcome, 'ESCALATE_CONTROL_REVIEW');
+  }
+  if (indicators.length >= 2) {
+    const sources = [...new Set(indicators.flatMap((i) => i.evidence))];
+    finding('FRAUD_INDICATORS_GE_2', 'FIN-POL-005 v2.8 §3', sources);
+    if (!claims.length)
+      exceptions.unshift({
+        code: 'OTHER_CONTROL_RISK',
+        failedRule: 'FRAUD_INDICATORS_GE_2',
+        expected: 'Fewer than two fraud indicators',
+        observed: indicators.map((i) => i.text).join(', '),
+        owner: 'Financial Crime and Controls',
+        nextReviewDate,
+        sources,
+      });
+    outcome = tighten(outcome, 'ESCALATE_CONTROL_REVIEW');
+  }
+  const bypass = e.signals.filter((s) => s.kind === 'bypass');
+  if (bypass.length) {
+    finding(
+      'INSTRUCTION_TO_DISABLE_CHECKS_IS_RISK_INDICATOR',
+      'FIN-POL-005 v2.8 §4',
+      bypass.map((s) => s.id),
+    );
+    outcome = tighten(outcome, 'HOLD_FOR_INFORMATION');
+  }
+  if (unknowns.includes('invoiceLines') && !exceptions.length) {
+    exceptions.push({
+      code: 'OTHER_CONTROL_RISK',
+      failedRule: 'THREE_WAY_MATCH',
+      expected: 'Itemised invoice lines',
+      observed: 'No grounded invoice lines',
+      sources: ['F-THREE_WAY_MATCH'],
+      owner: 'Accounts Payable',
+      nextReviewDate,
+    });
+  }
+  return { outcome, calculations, findings, authority, unknowns, exceptions, indicators };
 }

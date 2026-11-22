@@ -79,3 +79,12 @@ Status is `Agreed` (decided before implementation), `Implemented` (in the code, 
 - **Why:** Node 22 provides the synchronous connection, prepared statements and transactions the adapters need. Using the bundled driver avoids installing a separate native addon.
 - **Impact:** The runtime must provide `node:sqlite`. M1 was verified on Node 22.23.5. Both databases use the versioned SQL migrations, and the simulator keeps its postings in a separate file.
 - **Proof:** `tests/cli.test.ts` starts a run, reads it from a new process, exercises the approval gate and checks the persisted posting reference.
+
+## D-6 Standard exception review dates
+
+- **Type:** Clarification
+- **Status:** Implemented in M2
+- **What:** Standard exceptions are due on the third weekday after the review starts, using the injected clock in UTC. The requester owns PO price variances.
+- **Why:** FIN-POL-007 sections 3 and 4 assign PO issues to the requester or receipter and give standard exceptions three business days. The fixtures provide no holiday calendar.
+- **Impact:** A price variance found on Sunday 2026-11-22 is routed to the requester for review by Wednesday 2026-11-25.
+- **Proof:** The price-exception test in `tests/judgement.test.ts` checks the owner, date and line amounts together.

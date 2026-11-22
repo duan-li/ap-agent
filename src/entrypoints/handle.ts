@@ -44,6 +44,7 @@ export function openApp(
     db,
     erp,
     redact,
+    historyRecords: () => data.history,
     vendorMaster: () => data.vendors,
     close() {
       db.close();
