@@ -8,11 +8,23 @@ const input = { purpose: 'extract', text, chunkId: 'ATT-INV-88412' } as const;
 
 it('extracts both line amounts, unit prices, quantities, tax and total with verbatim quotes', async () => {
   const result = invoiceExtraction.parse(JSON.parse(await new FakeModel().call(input)));
-  expect(result.lines.map(line => [line.quantityRaw.value, line.unitPriceRaw.value, line.lineAmountRaw?.value]))
-    .toEqual([['10', '$1,200.00', '$12,000.00'], ['10', '$400.00', '$4,000.00']]);
+  expect(
+    result.lines.map((line) => [
+      line.quantityRaw.value,
+      line.unitPriceRaw.value,
+      line.lineAmountRaw?.value,
+    ]),
+  ).toEqual([
+    ['10', '$1,200.00', '$12,000.00'],
+    ['10', '$400.00', '$4,000.00'],
+  ]);
   expect(result.taxAmountRaw.value).toBe('$1,600.00');
   expect(result.totalAmountRaw.value).toBe('$17,600.00');
-  for (const field of [result.taxAmountRaw, result.totalAmountRaw, ...result.lines.flatMap(line => Object.values(line))]) {
+  for (const field of [
+    result.taxAmountRaw,
+    result.totalAmountRaw,
+    ...result.lines.flatMap((line) => Object.values(line)),
+  ]) {
     expect(text).toContain(field.quote);
     expect(field.quote).toContain(field.value);
     expect(field.chunkId).toBe(input.chunkId);

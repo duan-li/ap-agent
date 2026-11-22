@@ -6,7 +6,7 @@ export default defineConfig({
   test: {
     projects: [
       { test: { name: 'unit', include: ['tests/**/*.test.ts'], exclude: cases } },
-      { test: { name: 'cases', include: cases } },
+      { test: { name: 'cases', include: ['tests/cases.test.ts'] } },
     ],
   },
 });

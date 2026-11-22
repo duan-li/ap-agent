@@ -12,7 +12,9 @@ export class FixedClock implements Clock {
     if (!Number.isFinite(this.epochMs)) throw new Error('Invalid clock instant');
   }
 
-  now() { return new Date(this.epochMs); }
+  now() {
+    return new Date(this.epochMs);
+  }
 
   advance(ms: number) {
     if (!Number.isSafeInteger(ms) || ms < 0) throw new Error('Invalid clock advance');
@@ -26,5 +28,5 @@ export interface IdGenerator {
 
 export function seededIds(seed: string): IdGenerator {
   let sequence = 0;
-  return { next: prefix => `${prefix}_${seed}_${++sequence}` };
+  return { next: (prefix) => `${prefix}_${seed}_${++sequence}` };
 }
