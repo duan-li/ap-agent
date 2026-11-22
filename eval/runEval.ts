@@ -1,14 +1,9 @@
 #!/usr/bin/env -S node --import tsx
-import { readConfig } from '../src/adapters/config.ts';
 import { evaluateCase, loadCases, loadGreen, redLines } from './caseHarness.ts';
 
 import { evaluateRedLine } from '../tests/redlines.test.ts';
 
-if (process.argv.length !== 3 || process.argv[2] !== 'eval') {
-  console.error('Usage: ap eval');
-  process.exitCode = 2;
-} else {
-  readConfig();
+export async function evaluate() {
   const green = loadGreen();
   const cases = loadCases();
   let passed = 0;

@@ -486,3 +486,53 @@ export const runResult = object({
     .nullable(),
   actionsTaken: z.array(object({ action: writeAction, postingRef: text })),
 });
+
+export type Review = z.infer<typeof runResult>;
+export type Chunk = z.infer<typeof chunk>;
+export type Query = z.infer<typeof toolSchemas.retrieve_finance_documents.input>;
+export type HistoryQuery = z.infer<typeof toolSchemas.check_invoice_history.input>;
+export const trustList = object({ _note: text, policyAuthority: strings, untrusted: strings });
+export const indexSchema = chunk
+  .omit({ rank: true, score: true, trust: true })
+  .extend({
+    allowed: z.boolean(),
+    supersededDate: date.nullable(),
+  })
+  .array();
+export type Index = z.infer<typeof indexSchema>;
+export const rationale = object({ rationale: explanation.array() });
+export const approvalCommand = z.discriminatedUnion('decision', [
+  object({ runId: text, approvalId: text, decision: z.literal('APPROVE') }),
+  object({ runId: text, approvalId: text, decision: z.literal('REJECT'), reason: text }),
+]);
+
+export const requestMetadata = object({
+  deliveryId: text,
+  correlationId: text,
+  actor: object({ id: text, via: z.enum(['cli-flag', 'signed-webhook', 'service-identity']) }),
+  source: z.enum(['cli', 'http', 'queue']),
+  deadline: z.int(),
+  signal: z.instanceof(AbortSignal),
+});
+
+export const caseSetup = caseFile.pick({ request: true, faults: true, modelScript: true }).strip();
+
+export type RequestMeta = z.infer<typeof requestMetadata>;
+export type ApprovalCommand = z.infer<typeof approvalCommand>;
+
+export interface RunView {
+  runId: string;
+  caseId: string;
+  status: Review['status'];
+  currentStep: string;
+  budget: { steps: string; toolCalls: string; modelCalls: string };
+  outbox: { status: OutboxStatus; postingRef: string | null } | null;
+  result: Review | null;
+  events: Array<{
+    ts: string;
+    type: string;
+    runId: string;
+    correlationId: string;
+    [field: string]: z.infer<ReturnType<typeof z.json>>;
+  }>;
+}

@@ -15,12 +15,12 @@ Status is `Agreed` (decided before implementation), `Implemented` (in the code, 
 ## D-1 Invoice lines store quantity, unit price and line amount separately
 
 - **Type:** Field representation adjustment
-- **Status:** Agreed; implement in M1
+- **Status:** Implemented in M1
 - **Design reference:** TECH.md, Contracts, Result (FIN-001 sample, `SF-1` and `SF-2`)
 - **What:** The design's sample shows each invoice line as one value, `10 x 1200.00 = 12000.00`. The implementation extracts `quantity`, `unitPrice` and `lineAmount` as three fields. Each is checked against the invoice text on its own, and all three may cite the same invoice line. Code computes `quantity × unitPrice` and compares it with the stated `lineAmount`; a difference is a finding. Display strings such as `10 x 1200.00 = 12000.00` are formatted by code from these fields.
 - **Why:** The invoice reads `Qty 10  Unit $1,200.00  Amount $12,000.00`. The combined string does not appear in it, so the value-in-quote check would reject it. Separate fields prove extraction accuracy and also catch an invoice whose own arithmetic is wrong.
 - **Impact:** FIN-001 is compared with the design's sample on business fields, sources and outcome, not on display strings, IDs or hashes.
-- **Proof:** _to be filled in M1 (test name)_
+- **Proof:** `tests/extract.test.ts` grounds each stated value. `tests/calc.test.ts` compares the product with the stated amount. `tests/cli.test.ts` reads the resulting facts from the persisted FIN-001 review.
 
 ## D-2 Recovery lookup of an in-flight ERP submit is counted separately
 
@@ -69,3 +69,13 @@ Status is `Agreed` (decided before implementation), `Implemented` (in the code, 
 - **Why:** The owner chose to delegate the fixes. In the review, the first version passed a service that requested approval on FIN-003 and a service that submitted on resume. It also failed a correct service that stored epoch-millisecond times.
 - **Impact:** The added assertions are AI-written, so the independence the rule protects now rests on the owner's review of them. The owner should read each added assertion against the red line before M1 adds any red line to `eval/green.json`.
 - **Proof:** Each red line was run against a correct stub service and against stubs that break it (submit on resume, a second decision under a new delivery ID, spaced and prefix account leaks, approval requested, forged approval accepted, vendor master changed). Correct stubs passed, every broken stub failed, and epoch times did not trigger RL-003. The probe was a throwaway script and is not in the repository.
+
+## D-5 M1 uses the SQLite driver bundled with Node.js
+
+- **Type:** Departure (driver choice)
+- **Status:** Implemented in M1
+- **Design reference:** TECH.md, Persistence and migrations and Running with Docker
+- **What:** Both the agent store and the ERP simulator use `DatabaseSync` from `node:sqlite`. The Docker design specifies the `better-sqlite3` package.
+- **Why:** Node 22 provides the synchronous connection, prepared statements and transactions the adapters need. Using the bundled driver avoids installing a separate native addon.
+- **Impact:** The runtime must provide `node:sqlite`. M1 was verified on Node 22.23.5. Both databases use the versioned SQL migrations, and the simulator keeps its postings in a separate file.
+- **Proof:** `tests/cli.test.ts` starts a run, reads it from a new process, exercises the approval gate and checks the persisted posting reference.
