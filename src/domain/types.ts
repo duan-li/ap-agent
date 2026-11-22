@@ -210,6 +210,7 @@ const faults = object({
   }).optional(),
 });
 const outboxStatus = z.enum(['PENDING', 'SENDING', 'SENT', 'CANCELLED', 'RECONCILE_REQUIRED']);
+export type OutboxStatus = z.infer<typeof outboxStatus>;
 const checkpoint = object({
   status: runStatus,
   outboxStatus: outboxStatus.optional(),
