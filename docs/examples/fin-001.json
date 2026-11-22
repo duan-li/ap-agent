@@ -1,0 +1,495 @@
+{
+  "runId": "run_aec6d722-6c5e-456c-b554-dd7c8b550016",
+  "caseId": "FIN-001",
+  "status": "AWAITING_APPROVAL",
+  "decisionSummary": {
+    "paymentEligibility": "Eligible for posting once approved",
+    "approvalStatus": "Awaiting DEPARTMENT_DIRECTOR (0 of 1 approvals)",
+    "missingEvidence": [],
+    "financeActionTaken": "None"
+  },
+  "proposal": {
+    "outcome": "APPROVE_FOR_POSTING",
+    "nextAction": {
+      "type": "REQUEST_APPROVAL",
+      "roles": [
+        "DEPARTMENT_DIRECTOR"
+      ],
+      "approvalId": "apr_3615f91b-977b-456c-9ccd-b09746a33d35"
+    }
+  },
+  "sourcedFacts": [
+    {
+      "id": "invoiceNumber",
+      "field": "invoiceNumber",
+      "value": "INV-88412",
+      "source": {
+        "type": "ATTACHMENT",
+        "ref": "ATT-INV-88412",
+        "quote": "Invoice No: INV-88412"
+      }
+    },
+    {
+      "id": "invoiceDate",
+      "field": "invoiceDate",
+      "value": "2026-11-10",
+      "source": {
+        "type": "ATTACHMENT",
+        "ref": "ATT-INV-88412",
+        "quote": "Invoice date: 2026-11-10"
+      }
+    },
+    {
+      "id": "poNumber",
+      "field": "poNumber",
+      "value": "PO-55210",
+      "source": {
+        "type": "ATTACHMENT",
+        "ref": "ATT-INV-88412",
+        "quote": "Purchase order: PO-55210"
+      }
+    },
+    {
+      "id": "currency",
+      "field": "currency",
+      "value": "AUD",
+      "source": {
+        "type": "ATTACHMENT",
+        "ref": "ATT-INV-88412",
+        "quote": "Total due (AUD) $17,600.00"
+      }
+    },
+    {
+      "id": "totalAmount",
+      "field": "totalAmount",
+      "value": "17600.00",
+      "currency": "AUD",
+      "source": {
+        "type": "ATTACHMENT",
+        "ref": "ATT-INV-88412",
+        "quote": "Total due (AUD) $17,600.00"
+      }
+    },
+    {
+      "id": "taxAmount",
+      "field": "taxAmount",
+      "value": "1600.00",
+      "source": {
+        "type": "ATTACHMENT",
+        "ref": "ATT-INV-88412",
+        "quote": "GST 10% $1,600.00"
+      }
+    },
+    {
+      "id": "line1.description",
+      "field": "line1.description",
+      "value": "Laptop 14in",
+      "source": {
+        "type": "ATTACHMENT",
+        "ref": "ATT-INV-88412",
+        "quote": "1. Laptop 14in  Qty 10  Unit $1,200.00  Amount $12,000.00"
+      }
+    },
+    {
+      "id": "line1.quantity",
+      "field": "line1.quantity",
+      "value": "10",
+      "source": {
+        "type": "ATTACHMENT",
+        "ref": "ATT-INV-88412",
+        "quote": "1. Laptop 14in  Qty 10  Unit $1,200.00  Amount $12,000.00"
+      }
+    },
+    {
+      "id": "line1.unitPrice",
+      "field": "line1.unitPrice",
+      "value": "1200.00",
+      "source": {
+        "type": "ATTACHMENT",
+        "ref": "ATT-INV-88412",
+        "quote": "1. Laptop 14in  Qty 10  Unit $1,200.00  Amount $12,000.00"
+      }
+    },
+    {
+      "id": "line1.lineAmount",
+      "field": "line1.lineAmount",
+      "value": "12000.00",
+      "source": {
+        "type": "ATTACHMENT",
+        "ref": "ATT-INV-88412",
+        "quote": "1. Laptop 14in  Qty 10  Unit $1,200.00  Amount $12,000.00"
+      }
+    },
+    {
+      "id": "line2.description",
+      "field": "line2.description",
+      "value": "Docking station",
+      "source": {
+        "type": "ATTACHMENT",
+        "ref": "ATT-INV-88412",
+        "quote": "2. Docking station  Qty 10  Unit $400.00  Amount $4,000.00"
+      }
+    },
+    {
+      "id": "line2.quantity",
+      "field": "line2.quantity",
+      "value": "10",
+      "source": {
+        "type": "ATTACHMENT",
+        "ref": "ATT-INV-88412",
+        "quote": "2. Docking station  Qty 10  Unit $400.00  Amount $4,000.00"
+      }
+    },
+    {
+      "id": "line2.unitPrice",
+      "field": "line2.unitPrice",
+      "value": "400.00",
+      "source": {
+        "type": "ATTACHMENT",
+        "ref": "ATT-INV-88412",
+        "quote": "2. Docking station  Qty 10  Unit $400.00  Amount $4,000.00"
+      }
+    },
+    {
+      "id": "line2.lineAmount",
+      "field": "line2.lineAmount",
+      "value": "4000.00",
+      "source": {
+        "type": "ATTACHMENT",
+        "ref": "ATT-INV-88412",
+        "quote": "2. Docking station  Qty 10  Unit $400.00  Amount $4,000.00"
+      }
+    },
+    {
+      "id": "invoice-1",
+      "field": "invoiceLine1",
+      "value": "10 x 1200.00 = 12000.00",
+      "source": {
+        "type": "ATTACHMENT",
+        "ref": "ATT-INV-88412",
+        "quote": "1. Laptop 14in  Qty 10  Unit $1,200.00  Amount $12,000.00"
+      }
+    },
+    {
+      "id": "invoice-2",
+      "field": "invoiceLine2",
+      "value": "10 x 400.00 = 4000.00",
+      "source": {
+        "type": "ATTACHMENT",
+        "ref": "ATT-INV-88412",
+        "quote": "2. Docking station  Qty 10  Unit $400.00  Amount $4,000.00"
+      }
+    },
+    {
+      "id": "po-1",
+      "field": "poLine1",
+      "value": "10 x 1200.00",
+      "source": {
+        "type": "SYSTEM_OF_RECORD",
+        "ref": "get_purchase_order:PO-55210#line1"
+      }
+    },
+    {
+      "id": "po-2",
+      "field": "poLine2",
+      "value": "10 x 400.00",
+      "source": {
+        "type": "SYSTEM_OF_RECORD",
+        "ref": "get_purchase_order:PO-55210#line2"
+      }
+    },
+    {
+      "id": "GRN-7781-1",
+      "field": "receiptLine1",
+      "value": "10 received",
+      "source": {
+        "type": "SYSTEM_OF_RECORD",
+        "ref": "GRN-7781#line1"
+      }
+    },
+    {
+      "id": "GRN-7781-2",
+      "field": "receiptLine2",
+      "value": "10 received",
+      "source": {
+        "type": "SYSTEM_OF_RECORD",
+        "ref": "GRN-7781#line2"
+      }
+    },
+    {
+      "id": "vendor",
+      "field": "vendorStatus",
+      "value": "ACTIVE",
+      "source": {
+        "type": "SYSTEM_OF_RECORD",
+        "ref": "get_vendor_record:V-1007@2026-09-30T02:10:00Z"
+      }
+    },
+    {
+      "id": "history",
+      "field": "duplicateCheck",
+      "value": "0 exact, 0 fuzzy matches",
+      "source": {
+        "type": "SYSTEM_OF_RECORD",
+        "ref": "check_invoice_history:evt_7 V-1007/INV-88412/AUD/17600.00"
+      }
+    }
+  ],
+  "calculations": [
+    {
+      "id": "C-PRICE-1",
+      "check": "LINE_PRICE_TOLERANCE",
+      "line": 1,
+      "inputs": {
+        "po": "12000.00",
+        "invoice": "12000.00"
+      },
+      "formula": "abs(invoice - po) <= min(50, po * 0.01)",
+      "result": {
+        "variance": "0.00",
+        "threshold": "50.00",
+        "withinTolerance": true
+      }
+    },
+    {
+      "id": "C-ARITH-1",
+      "check": "LINE_ARITHMETIC",
+      "line": 1,
+      "inputs": {
+        "quantity": "10",
+        "unitPrice": "1200.00"
+      },
+      "result": {
+        "expected": "12000.00",
+        "stated": "12000.00",
+        "matches": true
+      }
+    },
+    {
+      "id": "C-QTY-1",
+      "check": "LINE_QUANTITY",
+      "line": 1,
+      "inputs": {
+        "invoiced": "10",
+        "received": "10"
+      },
+      "result": {
+        "withinTolerance": true
+      }
+    },
+    {
+      "id": "C-PRICE-2",
+      "check": "LINE_PRICE_TOLERANCE",
+      "line": 2,
+      "inputs": {
+        "po": "4000.00",
+        "invoice": "4000.00"
+      },
+      "formula": "abs(invoice - po) <= min(50, po * 0.01)",
+      "result": {
+        "variance": "0.00",
+        "threshold": "40.00",
+        "withinTolerance": true
+      }
+    },
+    {
+      "id": "C-ARITH-2",
+      "check": "LINE_ARITHMETIC",
+      "line": 2,
+      "inputs": {
+        "quantity": "10",
+        "unitPrice": "400.00"
+      },
+      "result": {
+        "expected": "4000.00",
+        "stated": "4000.00",
+        "matches": true
+      }
+    },
+    {
+      "id": "C-QTY-2",
+      "check": "LINE_QUANTITY",
+      "line": 2,
+      "inputs": {
+        "invoiced": "10",
+        "received": "10"
+      },
+      "result": {
+        "withinTolerance": true
+      }
+    },
+    {
+      "id": "C-RECEIPT",
+      "check": "GOODS_RECEIPT",
+      "inputs": {
+        "poNumber": "PO-55210",
+        "purchaseOrder": "returned",
+        "receipts": "GRN-7781"
+      },
+      "result": {
+        "verification": "VERIFIED"
+      }
+    },
+    {
+      "id": "C-tax",
+      "check": "TAX",
+      "inputs": {
+        "subtotal": "16000.00",
+        "rate": "0.10"
+      },
+      "result": {
+        "expected": "1600.00",
+        "stated": "1600.00",
+        "matches": true
+      }
+    },
+    {
+      "id": "C-total",
+      "check": "TOTAL",
+      "inputs": {
+        "subtotal": "16000.00",
+        "tax": "1600.00"
+      },
+      "result": {
+        "expected": "17600.00",
+        "stated": "17600.00",
+        "matches": true
+      }
+    },
+    {
+      "id": "C-AUTH",
+      "check": "APPROVAL_AMOUNT",
+      "inputs": {
+        "grossIncludingTax": "17600.00"
+      },
+      "result": {
+        "role": "DEPARTMENT_DIRECTOR",
+        "limit": "50000.00"
+      },
+      "policyRef": "FIN-POL-003 v4.0 §2"
+    }
+  ],
+  "policyFindings": [
+    {
+      "id": "F-THREE_WAY_MATCH",
+      "passed": true,
+      "evidence": [
+        "line1.description",
+        "line1.quantity",
+        "line1.unitPrice",
+        "line1.lineAmount",
+        "line2.description",
+        "line2.quantity",
+        "line2.unitPrice",
+        "line2.lineAmount",
+        "po-1",
+        "po-2",
+        "GRN-7781-1",
+        "GRN-7781-2",
+        "C-PRICE-1",
+        "C-ARITH-1",
+        "C-QTY-1",
+        "C-PRICE-2",
+        "C-ARITH-2",
+        "C-QTY-2",
+        "C-RECEIPT"
+      ],
+      "citation": "FIN-POL-002 v2.4 §2"
+    },
+    {
+      "id": "F-TAX_AND_TOTAL",
+      "passed": true,
+      "evidence": [
+        "taxAmount",
+        "totalAmount",
+        "C-tax",
+        "C-total"
+      ],
+      "citation": "FIN-POL-002 v2.4 §2"
+    },
+    {
+      "id": "F-VENDOR_ACTIVE",
+      "passed": true,
+      "evidence": [
+        "vendor"
+      ],
+      "citation": "FIN-POL-004 v5.1 §4"
+    },
+    {
+      "id": "F-DUPLICATE_CHECK",
+      "passed": true,
+      "evidence": [
+        "history"
+      ],
+      "citation": "FIN-POL-005 v2.8 §1"
+    },
+    {
+      "id": "F-APPROVAL_REQUIREMENT",
+      "passed": true,
+      "evidence": [
+        "C-AUTH"
+      ],
+      "citation": "FIN-POL-003 v4.0 §2"
+    }
+  ],
+  "inferences": [],
+  "unknowns": [],
+  "assumptions": [
+    "Approval amount includes GST (FIN-POL-003 §1)"
+  ],
+  "exceptions": [],
+  "explanation": [
+    {
+      "text": "three way match passed.",
+      "findingIds": [
+        "F-THREE_WAY_MATCH"
+      ]
+    },
+    {
+      "text": "tax and total passed.",
+      "findingIds": [
+        "F-TAX_AND_TOTAL"
+      ]
+    },
+    {
+      "text": "vendor active passed.",
+      "findingIds": [
+        "F-VENDOR_ACTIVE"
+      ]
+    },
+    {
+      "text": "duplicate check passed.",
+      "findingIds": [
+        "F-DUPLICATE_CHECK"
+      ]
+    },
+    {
+      "text": "approval requirement passed.",
+      "findingIds": [
+        "F-APPROVAL_REQUIREMENT"
+      ]
+    }
+  ],
+  "confidence": {
+    "level": "HIGH",
+    "reasons": [
+      "All required evidence present"
+    ]
+  },
+  "approvalSnapshot": {
+    "vendorId": "V-1007",
+    "invoiceRef": "INV-88412",
+    "amount": "17600.00",
+    "currency": "AUD",
+    "hash": "sha256:fbd10eaaf64d6c47a165c5dcb55263bc78463c74ff34004a0257b3396b9e7c1d",
+    "action": "POST",
+    "bankAccountVersion": "2024-03-11",
+    "policyVersions": {
+      "FIN-POL-002": "2.4",
+      "FIN-POL-004": "5.1",
+      "FIN-POL-005": "2.8",
+      "FIN-POL-003": "4.0"
+    }
+  },
+  "actionsTaken": []
+}

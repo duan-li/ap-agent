@@ -1,0 +1,12 @@
+services:
+  ap:
+    build:
+      context: .
+      target: runtime
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ap-data:/app/data
+volumes:
+  ap-data:

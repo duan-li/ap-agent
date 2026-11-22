@@ -53,7 +53,8 @@ type RunCase = (workflow: WorkflowCase) => Promise<{
   };
   observed: WorkflowCase['expect'];
 }>;
-export const runCase: RunCase = async (workflow) => {
+export type Metrics = ReturnType<Awaited<ReturnType<typeof openTestRun>>['metrics']>;
+export const runCase = async (workflow: WorkflowCase, record?: (metrics: Metrics) => void) => {
   const run = await openTestRun(workflow);
   try {
     const result = await observe(run, workflow.request, workflow.approvals, workflow);
@@ -96,7 +97,11 @@ export const runCase: RunCase = async (workflow) => {
     }
     return { ...result, details: { ...result.details, concurrentSingleWinner } };
   } finally {
-    run.close();
+    try {
+      record?.(run.metrics());
+    } finally {
+      run.close();
+    }
   }
 };
 
@@ -212,7 +217,7 @@ export async function evaluateCase(workflow: WorkflowCase, run: RunCase = runCas
           mismatches.push(key);
       } else if (!isDeepStrictEqual(actual, expected)) mismatches.push(key);
     }
-    return { actual: mismatches.length ? 'Mismatch: ' + mismatches.join(', ') : 'PASS' };
+    return { observed, actual: mismatches.length ? 'Mismatch: ' + mismatches.join(', ') : 'PASS' };
   } catch {
     return { actual: 'Case execution failed' };
   }
