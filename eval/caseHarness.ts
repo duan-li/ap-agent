@@ -58,15 +58,15 @@ export const runCase: RunCase = async () => {
 };
 
 export async function evaluateCase(workflow: WorkflowCase, run: RunCase = runCase) {
-  const adapters = caseAdapters(workflow);
   try {
-    const observed = await run(workflow.request, adapters);
+    const observed = await run(workflow.request, caseAdapters(workflow));
     const expected = workflow.expect;
     const keys = Object.keys(expected) as (keyof typeof expected)[];
     const mismatches = keys.filter((key) => !isDeepStrictEqual(observed[key], expected[key]));
     return { actual: mismatches.length ? 'Mismatch: ' + mismatches.join(', ') : 'PASS' };
   } catch (error) {
     if (error instanceof NotImplemented) return { actual: error.message };
-    throw error;
+    // Exception messages can include unredacted adapter data.
+    return { actual: 'Case execution failed' };
   }
 }
