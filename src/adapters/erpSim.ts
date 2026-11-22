@@ -40,3 +40,9 @@ export function post(db: DatabaseSync, input: unknown, clock: Clock, ids: IdGene
     );
   });
 }
+
+export function lookupPosting(db: DatabaseSync, key: string, unavailable = false): string | null {
+  if (unavailable) throw new Error('ERP lookup unavailable');
+  const row = db.prepare('SELECT posting_ref FROM erp_postings WHERE idempotency_key=?').get(key);
+  return row ? String(row.posting_ref) : null;
+}

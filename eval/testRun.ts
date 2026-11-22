@@ -9,18 +9,32 @@ export async function openTestRun(setup: Pick<WorkflowCase, 'id' | 'faults' | 'm
   const dir = mkdtempSync(join(tmpdir(), 'ap-eval-'));
   const logs: string[] = [];
   try {
-    const runtime = openApp(
-      dir,
-      {
-        model: new FakeModel(setup.modelScript),
-        clock: new FixedClock('2026-11-22T00:00:00Z'),
-        ids: seededIds(setup.id),
-        faults: setup.faults,
-      },
-      (line) => logs.push(line),
-    );
+    const clock = new FixedClock('2026-11-22T00:00:00Z');
+    const ids = seededIds(setup.id);
+    const open = (faults?: WorkflowCase['faults']) =>
+      openApp(
+        dir,
+        {
+          model: new FakeModel(setup.modelScript),
+          clock,
+          ids,
+          faults,
+        },
+        (line) => logs.push(line),
+      );
+    let runtime = open(setup.faults);
     return {
-      app: runtime.app,
+      get app() {
+        return runtime.app;
+      },
+      reopen() {
+        runtime.close();
+        runtime = open();
+      },
+      approvalStatus: (id: string) =>
+        String(
+          runtime.db.prepare('SELECT status FROM approvals WHERE run_id=?').get(id)?.status ?? '',
+        ),
       financeWrites: () =>
         Number(runtime.erp.prepare('SELECT count(*) n FROM erp_postings').get()?.n),
       approvedDecisions: () =>
@@ -35,11 +49,11 @@ export async function openTestRun(setup: Pick<WorkflowCase, 'id' | 'faults' | 'm
       postings: () =>
         runtime.erp
           .prepare(
-            'SELECT finance_action, invoice_no_normalised, idempotency_key FROM erp_postings',
+            'SELECT posting_ref, finance_action, invoice_no_normalised, idempotency_key FROM erp_postings',
           )
           .all(),
-      historyRecords: runtime.historyRecords,
-      vendorMaster: runtime.vendorMaster,
+      historyRecords: () => runtime.historyRecords(),
+      vendorMaster: () => runtime.vendorMaster(),
       logs: () => logs.join('\n'),
       sqliteContents: () =>
         readdirSync(dir)

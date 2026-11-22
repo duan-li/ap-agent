@@ -1,5 +1,4 @@
 import type { RequestMeta } from '../../domain/types.ts';
-import { transaction } from '../../adapters/migrate.ts';
 import { callTool, type ToolName } from '../../evidence/tools.ts';
 import type { Store } from './store.ts';
 export async function step<T>(
@@ -15,11 +14,12 @@ export async function step<T>(
   if (saved) return JSON.parse(String(saved.output_json)) as T;
   store.spend(id, 'steps');
   const result = await work();
-  transaction(store.db, () => {
+  store.write(() => {
     store.db.prepare('INSERT INTO steps VALUES(?,?,?)').run(id, name, store.json(result));
     store.db.prepare('UPDATE runs SET current_step=? WHERE id=?').run(name, id);
     store.event(id, meta, 'STEP_COMPLETED', { name });
   });
+  store.crash(id, 'crashAfterStep', name);
   return result;
 }
 // Every attempt, retries included, is charged to the run's tool budget and

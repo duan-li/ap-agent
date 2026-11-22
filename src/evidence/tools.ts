@@ -80,6 +80,24 @@ export function readTools(
 }
 export type ReadTools = ReturnType<typeof readTools>;
 
+// Apply the case's vendor-master change to this run's view of the simulator.
+export function submitEvidence(
+  tools: ReadTools,
+  settings: WorkflowCase['faults'],
+  resumed: boolean,
+): ReadTools {
+  const change =
+    (resumed && settings.vendorChangeBeforeResume) || settings.vendorChangeBeforeSubmit;
+  if (!change) return tools;
+  return {
+    ...tools,
+    vendor(id) {
+      const record = tools.vendor(id);
+      return change.vendorId === id ? { ...record, ...change.set } : record;
+    },
+  };
+}
+
 // The tool table in TECH.md, Contracts. Local retrieval is not retried. Submit
 // retries belong to outbox recovery, so it makes one attempt per send here.
 // A read that answers after its timeout or the request deadline is discarded.

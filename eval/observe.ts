@@ -3,8 +3,8 @@ import { isDeepStrictEqual } from 'node:util';
 import { normaliseInvoice } from '../src/adapters/toolBackends.ts';
 import type { RequestMeta, RunView } from '../src/application/apService.ts';
 import type { Review, WorkflowCase } from '../src/domain/types.ts';
-import type { openTestRun } from './testRun.ts';
-function meta(deliveryId: string, actor = 'local-operator'): RequestMeta {
+import { openTestRun } from './testRun.ts';
+export function meta(deliveryId: string, actor = 'local-operator'): RequestMeta {
   return {
     deliveryId,
     correlationId: 'eval',
@@ -18,17 +18,50 @@ export async function observe(
   run: Awaited<ReturnType<typeof openTestRun>>,
   request: WorkflowCase['request'],
   approvals: WorkflowCase['approvals'],
+  setup: Pick<WorkflowCase, 'id' | 'modelScript'>,
 ) {
   const vendorsBefore = structuredClone(run.vendorMaster());
   const historyBefore = structuredClone(run.historyRecords());
   const first = await run.app.startRun(request, meta('start'));
-  if (first.kind === 'error') throw new Error('Start failed');
-  const view = first.value;
+  let checkpoint: RunView | undefined;
+  let recovery: RunView | undefined;
+  let recoveredApproval: string | undefined;
+  let firstRef: string | undefined;
+  let erpPostings: number | undefined;
+  let equalsBaseline: boolean | undefined;
+  async function recover(id: string) {
+    run.reopen();
+    const before = await run.app.getRun(id, meta('inspect'));
+    if (before.kind === 'error') throw new Error('Missing checkpoint');
+    checkpoint = before.value;
+    firstRef = run.postings()[0]?.posting_ref as string | undefined;
+    erpPostings = run.financeWrites();
+    const resumed = await run.app.resume(id, meta('recover'));
+    if (resumed.kind === 'error') throw new Error('Recovery failed');
+    recovery = resumed.value;
+    recoveredApproval = run.approvalStatus(id);
+    return recovery;
+  }
+  let view: RunView;
+  if (first.kind === 'error') {
+    if (first.error.type !== 'Transient' || !('runId' in first.error))
+      throw new Error('Start failed');
+    view = await recover(first.error.runId);
+    const baseline = await openTestRun({ ...setup, faults: {} });
+    try {
+      const control = await baseline.app.startRun(request, meta('start'));
+      equalsBaseline =
+        control.kind === 'ok' && isDeepStrictEqual(control.value.result, view.result);
+    } finally {
+      baseline.close();
+    }
+  } else view = first.value;
   // A run that failed before its report has no result; those cases assert
   // only the status, the reason, the events and the ERP.
   const r: Review = view.result ?? emptyResult(view.runId, request.caseId, view.status),
     next = r.proposal.nextAction;
   const replies = [];
+  const bodies: string[] = [];
   for (const approval of approvals) {
     if (!('approvalId' in next)) throw new Error('Missing approval');
     const base = { runId: view.runId, approvalId: next.approvalId };
@@ -36,10 +69,15 @@ export async function observe(
       approval.decision === 'APPROVE'
         ? { ...base, decision: approval.decision }
         : { ...base, decision: approval.decision, reason: approval.reason ?? '' };
-    const reply = await run.app.resolveApproval(
+    let reply = await run.app.resolveApproval(
       command,
       meta(approval.deliveryId, approval.approver),
     );
+    if (reply.kind === 'error' && reply.error.type === 'Transient' && 'runId' in reply.error) {
+      await recover(reply.error.runId);
+      reply = await run.app.resolveApproval(command, meta(approval.deliveryId, approval.approver));
+    }
+    bodies.push(JSON.stringify(reply.kind === 'error' ? reply.error : reply.value));
     replies.push(reply.kind === 'error' ? reply.error.type : reply.kind);
   }
   const last = await run.app.getRun(view.runId, meta('read'));
@@ -74,6 +112,8 @@ export async function observe(
   const resumed = await run.app.resume(view.runId, meta('resume'));
   if (resumed.kind === 'error') throw new Error('Resume failed');
   const after = resumed.value;
+  const resumeView = recovery ?? after;
+  const resumeEvents = resumeView.events.slice((checkpoint ?? final).events.length);
   const addedEvents = after.events.slice(final.events.length);
   const receipt = r.calculations.find((c) => c.check === 'GOODS_RECEIPT')?.result.verification;
   return {
@@ -81,6 +121,7 @@ export async function observe(
     nextActionType: 'type' in next ? next.type : next.action,
     replies,
     details: {
+      bodies,
       toolCalls: counts,
       eventTypes: final.events.map((e) => e.type),
       exceptionMessages: r.exceptions.map((e) => e.observed),
@@ -154,9 +195,38 @@ export async function observe(
       repairs: final.events.filter((e) => e.type === 'MODEL_CALL' && e.purpose === 'extract-repair')
         .length,
       failureReason: final.failureReason ?? undefined,
+      approvalStatusAfter: run.approvalStatus(view.runId),
+      outboxStatus: final.outbox?.status,
+      finalExceptions: final.result?.exceptions.map((e) => e.code),
+      finalOutcome: final.result?.proposal.outcome,
+      statusAfterCrash: checkpoint?.status,
+      afterCrash: checkpoint && {
+        status: checkpoint.status,
+        outboxStatus: checkpoint.outbox?.status,
+        erpPostings,
+      },
+      resultEqualsUncrashedRun: equalsBaseline,
+      erpLookupCalls: final.erpLookupCalls,
+      toolCallsDuringResume:
+        checkpoint &&
+        Object.fromEntries(
+          [
+            'get_purchase_order',
+            'get_vendor_record',
+            'check_invoice_history',
+            'retrieve_finance_documents',
+          ].map((name) => [
+            name,
+            resumeEvents.filter((e) => e.type === 'TOOL_CALL' && e.name === name).length,
+          ]),
+        ),
       afterResume: {
-        status: after.status,
-        additionalToolCalls: addedEvents.filter((e) => e.type === 'TOOL_CALL').length,
+        outcome: resumeView.result?.proposal.outcome,
+        outboxStatus: resumeView.outbox?.status,
+        approvalStatus: recoveredApproval ?? run.approvalStatus(view.runId),
+        postingRefEqualsFirst: !!firstRef && resumeView.outbox?.postingRef === firstRef,
+        status: resumeView.status,
+        additionalToolCalls: resumeEvents.filter((e) => e.type === 'TOOL_CALL').length,
       },
       resumeOnCompletedRun:
         (final.status === 'COMPLETED' || final.status === 'FAILED') &&

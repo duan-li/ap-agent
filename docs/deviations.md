@@ -25,12 +25,12 @@ Status is `Agreed` (decided before implementation), `Implemented` (in the code, 
 ## D-2 Recovery lookup of an in-flight ERP submit is counted separately
 
 - **Type:** Clarification (recovery budget)
-- **Status:** Agreed; implement in M4
+- **Status:** Implemented in M4
 - **Design reference:** TECH.md, Implementation decisions, Decision 1, and Key mechanisms (outbox states)
 - **What:** When `resume` finds an outbox row in `SENDING`, it makes one read-only ERP lookup by the original idempotency key, at most once per resume. The lookup is allowed even when the run's tool budget is spent. It is counted in `erpLookupCalls`, not in the tool budget, and written as an audit event. If a posting is found, the row is recorded `SENT` with the original `postingRef` and is never cancelled. If no posting is found, the pre-submit checks run again and the submit is sent with the original key only if the approval, the snapshot and the remaining budget all allow it. If the lookup itself fails, the row becomes `RECONCILE_REQUIRED`.
 - **Why:** Recovery must be able to find out what already happened in the ERP. A new write still obeys the budget.
 - **Impact:** Cases `erp-crash-after-post`, `erp-crash-then-vendor-blocked` and `erp-crash-before-post` assert `erpLookupCalls` separately from `submitAttempts`.
-- **Proof:** _to be filled in M4 (test name)_
+- **Proof:** `tests/submit.test.ts` reopens both databases and exercises lookup with a posting, without a posting, with a spent budget, and with a lookup failure. The last drill sets `faults.erpLookupFails` on the simulator. `ap get` reports the lookup count from persisted audit events.
 
 ---
 

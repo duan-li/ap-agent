@@ -202,6 +202,7 @@ const faults = object({
   get_vendor_record: toolFaults.optional(),
   check_invoice_history: toolFaults.optional(),
   crashAfterStep: text.optional(),
+  erpLookupFails: z.boolean().optional(),
   crashAfterErpPost: z.boolean().optional(),
   crashAfterOutboxSending: z.boolean().optional(),
   vendorChangeBeforeResume: vendorChange.optional(),
@@ -219,6 +220,17 @@ const faults = object({
     maxModelCalls: line.max(6).optional(),
   }).optional(),
 });
+// Only stage-specific simulation settings must follow a run across CLI processes.
+export const durabilityFaults = faults
+  .pick({
+    erpLookupFails: true,
+    crashAfterStep: true,
+    crashAfterErpPost: true,
+    crashAfterOutboxSending: true,
+    vendorChangeBeforeResume: true,
+    vendorChangeBeforeSubmit: true,
+  })
+  .strip();
 const outboxStatus = z.enum(['PENDING', 'SENDING', 'SENT', 'CANCELLED', 'RECONCILE_REQUIRED']);
 export type OutboxStatus = z.infer<typeof outboxStatus>;
 const checkpoint = object({
@@ -517,6 +529,17 @@ export const indexSchema = chunk
   .array();
 export type Index = z.infer<typeof indexSchema>;
 export const rationale = object({ rationale: explanation.array() });
+export const cachedApprovalError = z.discriminatedUnion('type', [
+  object({ type: z.literal('Unauthorized') }),
+  object({ type: z.literal('NotFound') }),
+  object({ type: z.literal('Conflict'), currentState: text }),
+]);
+export const approvalResponse = object({
+  runId: text,
+  approvalId: text,
+  decision: z.enum(['APPROVE', 'REJECT']),
+  status: runStatus,
+});
 export const approvalCommand = z.discriminatedUnion('decision', [
   object({ runId: text, approvalId: text, decision: z.literal('APPROVE') }),
   object({ runId: text, approvalId: text, decision: z.literal('REJECT'), reason: text }),
@@ -547,6 +570,7 @@ export interface RunView {
   status: Review['status'];
   currentStep: string;
   budget: { steps: string; toolCalls: string; modelCalls: string };
+  erpLookupCalls: number;
   failureReason: string | null;
   outbox: { status: OutboxStatus; postingRef: string | null } | null;
   result: Review | null;

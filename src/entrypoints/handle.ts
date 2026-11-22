@@ -9,7 +9,7 @@ import { Store, defaultBudget, type BudgetLimits } from '../orchestrator/runtime
 import { service } from '../application/apService.ts';
 import { Flow } from '../orchestrator/flow.ts';
 import { ingest } from '../evidence/ingest.ts';
-import { indexSchema, type WorkflowCase } from '../domain/types.ts';
+import { indexSchema, durabilityFaults, type WorkflowCase } from '../domain/types.ts';
 import { readTools } from '../evidence/tools.ts';
 import { backends } from '../adapters/toolBackends.ts';
 import { redactor } from '../adapters/redact.ts';
@@ -25,8 +25,18 @@ export function openApp(
   },
   log: (s: string) => void,
 ) {
-  // Crash, clock and vendor-change faults arrive with M4.
-  const supported = ['get_purchase_order', 'get_vendor_record', 'check_invoice_history', 'budget'];
+  const supported = [
+    'get_purchase_order',
+    'get_vendor_record',
+    'check_invoice_history',
+    'budget',
+    'erpLookupFails',
+    'crashAfterStep',
+    'crashAfterErpPost',
+    'crashAfterOutboxSending',
+    'vendorChangeBeforeSubmit',
+    'vendorChangeBeforeResume',
+  ];
   if (Object.keys(options.faults ?? {}).some((key) => !supported.includes(key)))
     throw new Error('Fault simulation is not available for these settings');
   mkdirSync(dir, { recursive: true });
@@ -40,7 +50,15 @@ export function openApp(
     erp = openDatabase(join(dir, 'erp-sim.db'), 'erp-sim');
   const store = new Store(db, options.clock, redact, log);
   const tools = readTools(data, index, options.faults);
-  const flow = new Flow(store, erp, tools, options.model, options.ids, lowered(options.faults));
+  const flow = new Flow(
+    store,
+    erp,
+    tools,
+    options.model,
+    options.ids,
+    lowered(options.faults),
+    durabilityFaults.parse(options.faults ?? {}),
+  );
   return {
     app: service(flow, data),
     db,
