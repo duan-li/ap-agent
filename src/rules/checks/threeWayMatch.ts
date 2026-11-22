@@ -3,6 +3,37 @@ import type { Extraction } from '../../evidence/extract.ts';
 import type { ReadTools } from '../../evidence/tools.ts';
 import type { Review } from '../../domain/types.ts';
 import { arithmetic, tolerance } from '../calc.ts';
+// VERIFIED: the PO system returned receipts. NOT_FOUND: it answered and holds
+// none. UNVERIFIED: it could not be reached, so absence is not known.
+export type ReceiptVerification = 'VERIFIED' | 'UNVERIFIED' | 'NOT_FOUND';
+export function receiptVerification(
+  poNumber: string | undefined,
+  po: ReturnType<ReadTools['po']> | null,
+  poUnavailable: boolean,
+): { verification: ReceiptVerification | null; calculation?: Review['calculations'][number] } {
+  if (!poNumber) return { verification: null };
+  const verification: ReceiptVerification | null = po
+    ? po.receipts.length
+      ? 'VERIFIED'
+      : 'NOT_FOUND'
+    : poUnavailable
+      ? 'UNVERIFIED'
+      : null;
+  if (!verification) return { verification };
+  return {
+    verification,
+    calculation: {
+      id: 'C-RECEIPT',
+      check: 'GOODS_RECEIPT',
+      inputs: {
+        poNumber,
+        purchaseOrder: po ? 'returned' : 'unavailable',
+        receipts: po ? po.receipts.map((r) => r.receiptId).join(', ') || 'none' : 'unknown',
+      },
+      result: { verification },
+    },
+  };
+}
 export function threeWayMatch(invoice: Extraction, po: ReturnType<ReadTools['po']> | null) {
   const calculations: Review['calculations'] = [];
   let passed = !!po && po.approvalStatus === 'APPROVED' && po.lines.length === invoice.lineCount;

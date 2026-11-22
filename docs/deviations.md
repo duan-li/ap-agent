@@ -88,3 +88,43 @@ Status is `Agreed` (decided before implementation), `Implemented` (in the code, 
 - **Why:** FIN-POL-007 sections 3 and 4 assign PO issues to the requester or receipter and give standard exceptions three business days. The fixtures provide no holiday calendar.
 - **Impact:** A price variance found on Sunday 2026-11-22 is routed to the requester for review by Wednesday 2026-11-25.
 - **Proof:** The price-exception test in `tests/judgement.test.ts` checks the owner, date and line amounts together.
+
+## D-7 Run budget columns arrive in migration 0002
+
+- **Type:** Clarification
+- **Status:** Implemented in M3
+- **Design reference:** TECH.md, Contracts (Run budget) and Persistence and migrations; PLAN.md, M3 and M4
+- **What:** `migrations/0002_run_budget.sql` adds the three counters, the three limits and `failure_reason` to `runs`. The limits are written when the run starts (default 20, 15 and 6, or lower values from a case's `faults.budget`), so a resume uses the stored limits and the spent counts. A case can only lower a limit: the case schema rejects higher values, and `openApp` clamps them for callers that skip the schema. Every orchestrator step is charged when it executes: extract, gather, reconcile, report, request_approval, resolve_approval and submit, so FIN-001 takes seven. A replayed step is free. A refused request_approval or resolve_approval rolls back, so no approval exists or the approval stays `PENDING`, and the run ends `FAILED`. Submit charges its step before `SENDING`. Every tool attempt is charged, retries included, and so is every model call, the repair included. A refused attempt is never made: the run ends `FAILED` with `BUDGET_EXCEEDED`, a `BUDGET_EXCEEDED` event and a `RUN_FAILED` event. Before an approved intent moves to `SENDING`, one tool call must still be left; otherwise the intent is `CANCELLED` and nothing is sent. M4's inbox migration becomes `0003_inbox.sql`, not the `0002_inbox.sql` PLAN.md names.
+- **Why:** `0001_init.sql` was applied in M1, and applied migrations are never edited. The design's own `runs` excerpt already holds the counters.
+- **Impact:** `ap get` reports `budget` from the stored counters and a `failureReason` for failed runs. M4 renames one migration file.
+- **Proof:** `tests/failures.test.ts`: the budget-exceeded run, a deadline followed by resume that keeps the spent count, the refused submit, the model budget, the step budget at each of FIN-001's last three steps, and the rejected and clamped raised limits.
+
+## D-8 Fault blocks may also inject transient errors
+
+- **Type:** Clarification
+- **Status:** Implemented in M3
+- **Design reference:** PLAN.md, M3 (`adapters/toolBackends.ts`, transient errors); TECH.md, Contracts (Tools)
+- **What:** The fault block accepts `transientTimes` next to `timeoutTimes`, for `get_purchase_order`, `get_vendor_record` and `check_invoice_history`. Timeouts are served first, then transient errors, then the normal answer. The v3 cases use only `timeoutTimes`; no case file changed.
+- **Why:** PLAN.md asks for a transient-error test, and faults must come from a faults block, never from mocks in the code under test.
+- **Impact:** The retry policy is the same for both kinds: up to 3 attempts, backoff of 100 ms then 200 ms on the injected clock, no jitter (the M3 cut rule). Validation errors and missing records are never retried. The simulated backends are synchronous, so each attempt is judged when it returns. A read that took longer than its tool timeout counts as `TIMEOUT` and may be retried. A read that returns after the request deadline is discarded and the run stops at its checkpoint (`DeadlineExceeded`). A submit reply is always kept, because once the ERP has answered the write has happened. A model call is aborted at the deadline, and a reply that arrives after it on the injected clock is discarded. Local retrieval makes one attempt, as the tool table says. Submit makes one attempt per send; its recovery belongs to M4. A read tool other than the PO that still fails after its retries ends the run `FAILED` with `TOOL_UNAVAILABLE`, because Rules cannot judge without the vendor record or the history.
+- **Proof:** `tests/tools.test.ts`, including the late-read, late-submit and deadline tests; the transient PO and slow model tests in `tests/failures.test.ts`.
+
+## D-9 An unverified receipt keeps the MISSING_RECEIPT code
+
+- **Type:** Clarification
+- **Status:** Implemented in M3
+- **Design reference:** PLAN.md, M3 (`rules/checks/threeWayMatch.ts`); TECH.md, Contracts (FIN-004 view); `cases/FIN-004.json`
+- **What:** PLAN.md says `MISSING_RECEIPT` applies "only when the receipt is confirmed absent". TECH.md and `cases/FIN-004.json` use `MISSING_RECEIPT` for the unreachable PO too, and FIN-POL-007 §1 has no separate code. The implementation keeps the exception code and states the difference in a `GOODS_RECEIPT` record (`C-RECEIPT`, verification `UNVERIFIED` or `NOT_FOUND`) and in the exception wording. Unverified reads "Unable to verify goods receipt for PO-55388: the purchase order system failed on 3 attempts (TIMEOUT)" and lists the PO and the receipt as unknowns. Confirmed absent reads "No goods receipt exists for PO-55388", with no unknowns.
+- **Why:** The design and the verified case agree. The plan's sentence is read as being about wording, which is what the case asserts.
+- **Impact:** `FIN-004` and `FIN-004-po-recovered-no-receipt` both report `MISSING_RECEIPT`, distinguished by `receiptVerification`.
+- **Proof:** The FIN-004 and no-receipt tests in `tests/failures.test.ts`; cases `FIN-004` and `FIN-004-po-recovered-no-receipt`.
+
+## D-10 FIN-001-malformed conflicts with D-3
+
+- **Type:** Open question for the owner
+- **Status:** Open
+- **Design reference:** D-3; `cases/FIN-001-malformed.json`; `fixtures/model_scripts/FIN-001-malformed.json`; `tests/judgement.test.ts` (bad-citation)
+- **What:** The repaired extraction in `FIN-001-malformed.json` has quantity and unit price but no `lineAmountRaw`, like the FIN-001 reference and `bad-citation` scripts. Under D-3 a missing stated line amount is missing evidence, so the repaired run holds. The case expects `APPROVE_FOR_POSTING` and `AWAITING_APPROVAL`. The M2 test expects FIN-001 with `bad-citation` to hold for the same reason. The verifier passes, so AGENTS.md points at the code, but the code follows an agreed deviation.
+- **Why:** The repair path itself works: one `MODEL_OUTPUT_INVALID`, one repair call, one `MODEL_OUTPUT_REPAIRED`, and `malformed-twice` ends `FAILED`. Only the outcome after the repair differs.
+- **Impact:** `FIN-001-malformed` is not in `eval/green.json` until the owner decides. It fails only on `outcome` and `statusBeforeApproval`.
+- **Proof:** _pending the decision_

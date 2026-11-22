@@ -42,7 +42,9 @@ it('replays malformed output, repair and inherited explanation in order', async 
   const model = new FakeModel('fixtures/model_scripts/FIN-001-malformed.json');
   const raw = await model.call(input);
   expect(() => JSON.parse(raw)).toThrow();
-  const repaired = JSON.parse(await model.call({ ...input, purpose: 'extract-repair' }));
+  const repaired = JSON.parse(
+    await model.call({ ...input, purpose: 'extract-repair', error: 'Response is not valid JSON' }),
+  );
   expect(invoiceExtraction.parse(repaired).invoiceNumber.value).toBe('INV-88412');
   const explanation = JSON.parse(await model.call({ purpose: 'explain', findings: [] }));
   expect(explanation.rationale[0].findingIds).toEqual(['F-THREE_WAY_MATCH']);

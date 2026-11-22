@@ -39,12 +39,16 @@ export class NotImplemented extends Error {
   }
 }
 
-type RunCase = (
-  workflow: WorkflowCase,
-) => Promise<{
+type RunCase = (workflow: WorkflowCase) => Promise<{
   logs?: string;
   nextActionType?: string;
   replies: string[];
+  details?: {
+    toolCalls: Record<string, number>;
+    eventTypes: string[];
+    exceptionMessages: string[];
+    receiptEvidence: string[];
+  };
   observed: WorkflowCase['expect'];
 }>;
 export const runCase: RunCase = async (workflow) => {
@@ -58,7 +62,8 @@ export const runCase: RunCase = async (workflow) => {
 
 export async function evaluateCase(workflow: WorkflowCase, run: RunCase = runCase) {
   try {
-    const { observed, replies, logs, nextActionType } = await run(workflow);
+    const { observed, replies, logs, nextActionType, details } = await run(workflow);
+    const expect = workflow.expect;
     const mismatches: string[] = [];
     if (
       !isDeepStrictEqual(
@@ -69,7 +74,49 @@ export async function evaluateCase(workflow: WorkflowCase, run: RunCase = runCas
       mismatches.push('approval replies');
     for (const [key, expected] of Object.entries(workflow.expect)) {
       const actual = observed[key as keyof typeof observed];
-      if (key === 'nextActionMustNotBe') {
+      if (key === 'toolCalls') {
+        // Only the listed tools are counted; others may be called freely.
+        if (
+          !details ||
+          Object.entries(expect.toolCalls!).some(
+            ([tool, n]) => (details.toolCalls[tool] ?? 0) !== n,
+          )
+        )
+          mismatches.push(key);
+      } else if (key === 'toolCallsTotalMax') {
+        if (
+          observed.toolCallsTotalMax === undefined ||
+          observed.toolCallsTotalMax > expect.toolCallsTotalMax!
+        )
+          mismatches.push(key);
+      } else if (key === 'auditEvents') {
+        if (!details || expect.auditEvents!.some((type) => !details.eventTypes.includes(type)))
+          mismatches.push(key);
+      } else if (key === 'afterResume' || key === 'afterCrash') {
+        // A checkpoint lists only the fields the case cares about.
+        const got = (observed[key] ?? {}) as Record<string, unknown>;
+        if (
+          Object.entries(expect[key]!).some(
+            ([field, value]) => !isDeepStrictEqual(got[field], value),
+          )
+        )
+          mismatches.push(key);
+      } else if (key === 'exceptionMessageContains') {
+        if (!details?.exceptionMessages.some((m) => m.includes(expect.exceptionMessageContains!)))
+          mismatches.push(key);
+      } else if (key === 'exceptionMessageMustNotContain') {
+        const banned = expect.exceptionMessageMustNotContain!.toLowerCase();
+        if (!details || details.exceptionMessages.some((m) => m.toLowerCase().includes(banned)))
+          mismatches.push(key);
+      } else if (key === 'mustNotInferReceiptFrom') {
+        // The delivery line may be read, but never used as receipt evidence.
+        if (
+          !details ||
+          observed.receiptVerification === undefined ||
+          details.receiptEvidence.some((quote) => quote.includes(expect.mustNotInferReceiptFrom!))
+        )
+          mismatches.push(key);
+      } else if (key === 'nextActionMustNotBe') {
         if (!nextActionType || nextActionType === expected) mismatches.push(key);
       } else if (key === 'logsMustNotContain') {
         if (!logs || workflow.expect.logsMustNotContain!.some((value) => logs.includes(value)))

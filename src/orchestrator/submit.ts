@@ -6,11 +6,11 @@ import type { DatabaseSync } from 'node:sqlite';
 import type { IdGenerator } from '../adapters/clock.ts';
 import type { RequestMeta } from '../domain/types.ts';
 import { conflict } from './errors.ts';
-import type { ReadTools } from '../evidence/tools.ts';
+import { checkDeadline, type ReadTools } from '../evidence/tools.ts';
 import { freezeSnapshot } from './approvals.ts';
 import { summary } from '../report/summary.ts';
 import { policies } from '../rules/registry.ts';
-export function submit(
+export async function submit(
   store: Store,
   erp: DatabaseSync,
   tools: ReadTools,
@@ -36,11 +36,13 @@ export function submit(
     fields.action !== intent.finance_action
   )
     return conflict('Snapshot mismatch');
-  const vendor = attempt(store, id, meta, 'get_vendor_record', () =>
+  // Submit is a step: refuse before the pre-submit checks spend tool calls.
+  store.ensure(id, 'steps');
+  const vendor = await attempt(store, id, meta, 'get_vendor_record', () =>
     tools.vendor(snapshot.vendorId),
   );
   const policy = policies[4];
-  const authority = attempt(store, id, meta, 'retrieve_finance_documents', () =>
+  const authority = await attempt(store, id, meta, 'retrieve_finance_documents', () =>
     tools.retrieve(
       { query: policy.query, topK: 3, filters: { trust: 'authority' } },
       store.clock.now().toISOString().slice(0, 10),
@@ -59,6 +61,12 @@ export function submit(
   )
     return conflict('Evidence changed');
   const key = String(intent.idempotency_key);
+  // Refuse before SENDING when no tool call or time is left for the submit,
+  // so a SENDING row always means the call was made. The step is charged
+  // last, once nothing else before SENDING can fail.
+  store.ensure(id, 'tool_calls');
+  checkDeadline({ clock: store.clock, deadline: meta.deadline, signal: meta.signal });
+  store.spend(id, 'steps');
   if (
     !db
       .prepare("UPDATE outbox SET status='SENDING' WHERE idempotency_key=? AND status='PENDING'")
@@ -66,7 +74,7 @@ export function submit(
   )
     return conflict('Already sending');
   const { vendorId, invoiceRef, amount, currency } = snapshot;
-  const receipt = attempt(store, id, meta, 'submit_finance_decision', () =>
+  const receipt = await attempt(store, id, meta, 'submit_finance_decision', () =>
     post(
       erp,
       {

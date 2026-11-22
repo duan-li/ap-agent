@@ -7,6 +7,15 @@ import {
   type RunView,
 } from '../../domain/types.ts';
 import type { Clock } from '../../adapters/clock.ts';
+import { transaction } from '../../adapters/migrate.ts';
+import { BudgetExceeded, type BudgetKind, type RunFailure } from '../errors.ts';
+
+export interface BudgetLimits {
+  maxSteps: number;
+  maxToolCalls: number;
+  maxModelCalls: number;
+}
+export const defaultBudget: BudgetLimits = { maxSteps: 20, maxToolCalls: 15, maxModelCalls: 6 };
 
 export class Store {
   constructor(
@@ -34,6 +43,61 @@ export class Store {
       .prepare('UPDATE runs SET state=?,current_step=?,result_json=? WHERE id=?')
       .run(result.status, step, this.json(runResult.parse(result)), result.runId);
   }
+  // Spends one unit of the persisted budget, or refuses when it is used up.
+  // The counters live on the run row, so a resumed run inherits them.
+  spend(runId: string, kind: BudgetKind) {
+    const changed = this.db
+      .prepare(
+        `UPDATE runs SET ${kind}_used=${kind}_used+1 WHERE id=? AND ${kind}_used<max_${kind}`,
+      )
+      .run(runId).changes;
+    if (!changed) throw new BudgetExceeded(kind, this.limit(runId, kind));
+  }
+  // Checks that one unit is left without spending it.
+  ensure(runId: string, kind: BudgetKind) {
+    const row = this.db
+      .prepare(`SELECT ${kind}_used AS used, max_${kind} AS max FROM runs WHERE id=?`)
+      .get(runId);
+    if (!row || Number(row.used) >= Number(row.max))
+      throw new BudgetExceeded(kind, this.limit(runId, kind));
+  }
+  private limit(runId: string, kind: BudgetKind) {
+    return Number(
+      this.db.prepare(`SELECT max_${kind} AS max FROM runs WHERE id=?`).get(runId)?.max,
+    );
+  }
+  // Ends the run FAILED. A pending submit intent is cancelled, so nothing is
+  // relayed later. An intent already SENDING is left for recovery.
+  fail(runId: string, meta: RequestMeta, failure: RunFailure) {
+    transaction(this.db, () => {
+      if (failure.reason === 'BUDGET_EXCEEDED')
+        this.event(runId, meta, 'BUDGET_EXCEEDED', failure.detail);
+      this.db
+        .prepare("UPDATE outbox SET status='CANCELLED' WHERE run_id=? AND status='PENDING'")
+        .run(runId);
+      const row = this.db.prepare('SELECT result_json FROM runs WHERE id=?').get(runId);
+      if (row?.result_json) {
+        const result = runResult.parse(JSON.parse(String(row.result_json)));
+        result.status = 'FAILED';
+        result.decisionSummary = {
+          ...result.decisionSummary,
+          paymentEligibility: 'Ineligible for posting',
+          approvalStatus: 'No approval pending',
+        };
+        result.proposal.nextAction = {
+          owner: 'Accounts Payable',
+          action: 'Run failed (' + failure.reason + '); re-submit the invoice as a new run',
+        };
+        this.db
+          .prepare('UPDATE runs SET result_json=? WHERE id=?')
+          .run(this.json(runResult.parse(result)), runId);
+      }
+      this.db
+        .prepare("UPDATE runs SET state='FAILED', failure_reason=? WHERE id=?")
+        .run(failure.reason, runId);
+      this.event(runId, meta, 'RUN_FAILED', { reason: failure.reason, ...failure.detail });
+    });
+  }
   view(id: string): RunView | null {
     const row = this.db.prepare('SELECT * FROM runs WHERE id=?').get(id);
     if (!row) return null;
@@ -45,7 +109,6 @@ export class Store {
         eventId: 'evt_' + r.id,
       })) as RunView['events'];
     const out = this.db.prepare('SELECT status,posting_ref FROM outbox WHERE run_id=?').get(id);
-    const count = (name: string) => events.filter((e) => e.type === name).length;
     return {
       runId: id,
       caseId: String(row.case_id),
@@ -54,10 +117,11 @@ export class Store {
       result: row.result_json ? runResult.parse(JSON.parse(String(row.result_json))) : null,
       events,
       budget: {
-        steps: count('STEP_COMPLETED') + ' of 20',
-        toolCalls: count('TOOL_CALL') + ' of 15',
-        modelCalls: count('MODEL_CALL') + ' of 6',
+        steps: row.steps_used + ' of ' + row.max_steps,
+        toolCalls: row.tool_calls_used + ' of ' + row.max_tool_calls,
+        modelCalls: row.model_calls_used + ' of ' + row.max_model_calls,
       },
+      failureReason: row.failure_reason === null ? null : String(row.failure_reason),
       outbox: out
         ? { status: out.status as OutboxStatus, postingRef: out.posting_ref as string | null }
         : null,

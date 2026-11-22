@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import type { ModelProvider } from '../adapters/model/provider.ts';
+import type { z } from 'zod';
 import { invoiceExtraction, supplierClaims } from '../domain/types.ts';
 import { grounded } from './grounding.ts';
 type Field = { value: string; quote: string; chunkId: string };
@@ -9,14 +10,59 @@ export interface Extraction {
   lineCount: number;
   suspicious: boolean;
 }
+export class ModelOutputInvalid extends Error {
+  constructor(readonly issue: string) {
+    super('Model output invalid after repair: ' + issue);
+  }
+}
+export interface ExtractObserver {
+  invalid?(attempt: number, issue: string): void;
+  repaired?(): void;
+}
+type Parsed =
+  | { ok: true; claims: true }
+  | { ok: true; claims: false; invoice: z.infer<typeof invoiceExtraction> }
+  | { ok: false; issue: string };
+// The issue fed back to the model names fields and rules, never document text.
+function interpret(reply: string): Parsed {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(reply);
+  } catch {
+    return { ok: false, issue: 'Response is not valid JSON' };
+  }
+  if (supplierClaims.safeParse(raw).success) return { ok: true, claims: true };
+  const parsed = invoiceExtraction.safeParse(raw);
+  if (parsed.success) return { ok: true, claims: false, invoice: parsed.data };
+  const issues = parsed.error.issues
+    .slice(0, 5)
+    .map((i) => (i.path.join('.') || 'response') + ': ' + i.code);
+  return {
+    ok: false,
+    issue: 'Response does not match the extraction schema (' + issues.join('; ') + ')',
+  };
+}
+// One repair attempt with the validation error fed back; a second invalid
+// reply ends extraction with ModelOutputInvalid. Nothing is guessed.
 export async function extract(
   model: ModelProvider,
   text: string,
   chunkId: string,
+  observer: ExtractObserver = {},
 ): Promise<Extraction> {
-  const raw: unknown = JSON.parse(await model.call({ purpose: 'extract', text, chunkId }));
-  if (supplierClaims.safeParse(raw).success) return { ...missingInvoice(), suspicious: true };
-  const invoice = invoiceExtraction.parse(raw);
+  let parsed = interpret(await model.call({ purpose: 'extract', text, chunkId }));
+  if (!parsed.ok) {
+    observer.invalid?.(1, parsed.issue);
+    const error = parsed.issue;
+    parsed = interpret(await model.call({ purpose: 'extract-repair', text, chunkId, error }));
+    if (!parsed.ok) {
+      observer.invalid?.(2, parsed.issue);
+      throw new ModelOutputInvalid(parsed.issue);
+    }
+    observer.repaired?.();
+  }
+  if (parsed.claims) return { ...missingInvoice(), suspicious: true };
+  const { invoice } = parsed;
   const fields: Record<string, Field> = {};
   const unknowns: string[] = [];
   function add(name: string, field?: Field, numeric = false) {
