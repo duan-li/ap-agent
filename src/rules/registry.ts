@@ -3,7 +3,7 @@ import type { Review, Chunk, WorkflowCase } from '../domain/types.ts';
 import type { Extraction } from '../evidence/extract.ts';
 import type { ReadTools } from '../evidence/tools.ts';
 import { approvalRequirement } from './checks/approvalRequirement.ts';
-import { threeWayMatch } from './checks/threeWayMatch.ts';
+import { receiptVerification, threeWayMatch } from './checks/threeWayMatch.ts';
 import { taxAndTotal } from './checks/taxAndTotal.ts';
 import { vendorActive } from './checks/vendorActive.ts';
 import { duplicate } from './checks/duplicate.ts';
@@ -24,6 +24,14 @@ export const policies = [
   },
 ] as const;
 export const duplicateQuery = 'exact match paid posted outcomes';
+export const receiptQuery = 'invoice without goods receipt';
+export const missingEvidenceQuery = 'missing evidence hold';
+// How the purchase order lookup ended. Runs journalled before M3 lack it.
+export interface PoLookup {
+  status: 'FOUND' | 'UNAVAILABLE' | 'NOT_FOUND';
+  attempts?: number;
+  reason?: string;
+}
 export const bankQueries = [
   'bank account changes',
   'prohibited automation',
@@ -39,11 +47,17 @@ export interface Evidence {
   history: ReturnType<ReadTools['history']>;
   chunks: Chunk[];
   historyEvent: string;
+  poLookup?: PoLookup;
 }
 export function reconcile(r: WorkflowCase['request'], e: Evidence) {
   const { invoice, po, vendor, history } = e;
   const match = threeWayMatch(invoice, po);
-  const tax = taxAndTotal(invoice, po?.taxRate ?? '0');
+  const poNumber = invoice.fields.poNumber?.value;
+  const poUnavailable = e.poLookup?.status === 'UNAVAILABLE';
+  const receipt = receiptVerification(poNumber, po, poUnavailable);
+  if (receipt.calculation) match.calculations.push(receipt.calculation);
+  // Without the PO there is no tax rate to check against.
+  const tax = po ? taxAndTotal(invoice, po.taxRate) : { passed: false, calculations: [] };
   const authority = approvalRequirement(r.amount);
   const calculations: Review['calculations'] = [
     ...match.calculations,
@@ -85,6 +99,8 @@ export function reconcile(r: WorkflowCase['request'], e: Evidence) {
     APPROVAL_REQUIREMENT: ['C-AUTH'],
   };
   const unknowns = [...invoice.unknowns];
+  if (poUnavailable && poNumber)
+    unknowns.push('purchase_order:' + poNumber, 'goods_receipt:' + poNumber);
   if ((r.attachments?.length ?? 0) > 1 || invoice.suspicious)
     unknowns.push('Supplementary content requires review');
   const findings: Review['policyFindings'] = policies.map((p) => {
@@ -171,6 +187,35 @@ export function reconcile(r: WorkflowCase['request'], e: Evidence) {
     );
     outcome = tighten(outcome, 'HOLD_FOR_INFORMATION');
   }
+  if (receipt.verification === 'UNVERIFIED' || receipt.verification === 'NOT_FOUND') {
+    // FIN-POL-002 section 4: receipt is never inferred from invoice wording.
+    finding('RECEIPT_REQUIRED_NOT_INFERRED', 'FIN-POL-002 v2.4 §4', ['C-RECEIPT']);
+    const lookup = e.poLookup;
+    exceptions.push({
+      code: 'MISSING_RECEIPT',
+      failedRule: 'RECEIPT_REQUIRED_NOT_INFERRED',
+      expected: 'A goods receipt for ' + poNumber + ' before payment',
+      observed:
+        receipt.verification === 'UNVERIFIED'
+          ? 'Unable to verify goods receipt for ' +
+            poNumber +
+            ': the purchase order system failed on ' +
+            (lookup?.attempts ?? 0) +
+            ' attempts (' +
+            (lookup?.reason ?? 'unavailable') +
+            ')'
+          : 'No goods receipt exists for ' + poNumber,
+      owner: 'requester or receipter',
+      nextReviewDate,
+      sources: ['C-RECEIPT', 'F-RECEIPT_REQUIRED_NOT_INFERRED'],
+    });
+    outcome = tighten(outcome, 'HOLD_FOR_INFORMATION');
+  }
+  if (poUnavailable) {
+    // FIN-POL-001 section 5: missing evidence results in a hold.
+    finding('MISSING_EVIDENCE_HOLD', 'FIN-POL-001 v3.2 §5', ['po-lookup']);
+    outcome = tighten(outcome, 'HOLD_FOR_INFORMATION');
+  }
   if (unknowns.includes('invoiceLines') && !exceptions.length) {
     exceptions.push({
       code: 'OTHER_CONTROL_RISK',
@@ -182,5 +227,28 @@ export function reconcile(r: WorkflowCase['request'], e: Evidence) {
       nextReviewDate,
     });
   }
-  return { outcome, calculations, findings, authority, unknowns, exceptions, indicators };
+  const assumptions = calculations
+    .filter((c) => c.check === 'LINE_AMOUNT_DERIVED')
+    .map(
+      (c) =>
+        'Line ' +
+        c.line +
+        ' amount is computed as quantity x unit price (' +
+        c.inputs.quantity +
+        ' x ' +
+        c.inputs.unitPrice +
+        ' = ' +
+        c.result.expected +
+        '); the stated line amount was not extracted. The stated total still has to match.',
+    );
+  return {
+    outcome,
+    calculations,
+    findings,
+    authority,
+    unknowns,
+    exceptions,
+    indicators,
+    assumptions,
+  };
 }

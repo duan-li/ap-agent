@@ -195,8 +195,12 @@ export const request = object({
   attachments: strings.optional(),
 });
 const vendorChange = object({ vendorId: text, set: object({ status: vendorStatus }) });
+// transientTimes is not in the v3 pack; it drives the transient-error tests (D-8).
+const toolFaults = object({ timeoutTimes: count.optional(), transientTimes: count.optional() });
 const faults = object({
-  get_purchase_order: object({ timeoutTimes: count }).optional(),
+  get_purchase_order: toolFaults.optional(),
+  get_vendor_record: toolFaults.optional(),
+  check_invoice_history: toolFaults.optional(),
   crashAfterStep: text.optional(),
   crashAfterErpPost: z.boolean().optional(),
   crashAfterOutboxSending: z.boolean().optional(),
@@ -208,10 +212,11 @@ const faults = object({
     effectiveDate: date,
   }).optional(),
   clock: object({ approvalAt: time }).optional(),
+  // A case may lower the run budget (20 steps, 15 tool calls, 6 model calls), never raise it.
   budget: object({
-    maxSteps: line.optional(),
-    maxToolCalls: line.optional(),
-    maxModelCalls: line.optional(),
+    maxSteps: line.max(20).optional(),
+    maxToolCalls: line.max(15).optional(),
+    maxModelCalls: line.max(6).optional(),
   }).optional(),
 });
 const outboxStatus = z.enum(['PENDING', 'SENDING', 'SENT', 'CANCELLED', 'RECONCILE_REQUIRED']);
@@ -542,6 +547,7 @@ export interface RunView {
   status: Review['status'];
   currentStep: string;
   budget: { steps: string; toolCalls: string; modelCalls: string };
+  failureReason: string | null;
   outbox: { status: OutboxStatus; postingRef: string | null } | null;
   result: Review | null;
   events: Array<{

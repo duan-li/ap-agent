@@ -28,6 +28,13 @@ export function priceExceptions(
       threshold: String(c.result.threshold),
       owner: 'Requester',
       nextReviewDate,
-      sources: [c.id, 'F-THREE_WAY_MATCH', 'po-' + c.line, 'line' + c.line + '.lineAmount'],
+      sources: [
+        c.id,
+        'F-THREE_WAY_MATCH',
+        'po-' + c.line,
+        calculations.some((d) => d.check === 'LINE_AMOUNT_DERIVED' && d.line === c.line)
+          ? 'C-ARITH-' + c.line
+          : 'line' + c.line + '.lineAmount',
+      ],
     }));
 }

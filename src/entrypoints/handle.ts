@@ -5,7 +5,7 @@ import { dispatch } from './dispatch.ts';
 import { mkdirSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { openDatabase } from '../adapters/sqlite.ts';
-import { Store } from '../orchestrator/runtime/store.ts';
+import { Store, defaultBudget, type BudgetLimits } from '../orchestrator/runtime/store.ts';
 import { service } from '../application/apService.ts';
 import { Flow } from '../orchestrator/flow.ts';
 import { ingest } from '../evidence/ingest.ts';
@@ -25,7 +25,9 @@ export function openApp(
   },
   log: (s: string) => void,
 ) {
-  if (Object.keys(options.faults ?? {}).some((key) => key !== 'get_purchase_order'))
+  // Crash, clock and vendor-change faults arrive with M4.
+  const supported = ['get_purchase_order', 'get_vendor_record', 'check_invoice_history', 'budget'];
+  if (Object.keys(options.faults ?? {}).some((key) => !supported.includes(key)))
     throw new Error('Fault simulation is not available for these settings');
   mkdirSync(dir, { recursive: true });
   const data = backends(),
@@ -38,7 +40,7 @@ export function openApp(
     erp = openDatabase(join(dir, 'erp-sim.db'), 'erp-sim');
   const store = new Store(db, options.clock, redact, log);
   const tools = readTools(data, index, options.faults);
-  const flow = new Flow(store, erp, tools, options.model, options.ids);
+  const flow = new Flow(store, erp, tools, options.model, options.ids, lowered(options.faults));
   return {
     app: service(flow, data),
     db,
@@ -50,6 +52,17 @@ export function openApp(
       db.close();
       erp.close();
     },
+  };
+}
+
+// Case limits can only tighten the defaults, whoever builds the options.
+function lowered(faults: WorkflowCase['faults'] = {}): BudgetLimits {
+  const limit = (key: keyof BudgetLimits) =>
+    Math.min(defaultBudget[key], faults.budget?.[key] ?? defaultBudget[key]);
+  return {
+    maxSteps: limit('maxSteps'),
+    maxToolCalls: limit('maxToolCalls'),
+    maxModelCalls: limit('maxModelCalls'),
   };
 }
 

@@ -74,6 +74,14 @@ export function recommend(
       r.amount,
   );
   for (const h of history.exact) record(h.recordId, 'matchedHistoryRecord', h.status, h.recordId);
+  const poNumber = invoice.fields.poNumber?.value;
+  if (e.poLookup && e.poLookup.status !== 'FOUND' && poNumber)
+    record(
+      'po-lookup',
+      'purchaseOrderLookup',
+      e.poLookup.status + ' after ' + (e.poLookup.attempts ?? 0) + ' attempt(s)',
+      'get_purchase_order:' + poNumber,
+    );
   const { indicators, exceptions } = decision;
   if (indicators.length) {
     record('bank-master', 'bankLast4', vendor.bankLast4, 'get_vendor_record:' + vendor.vendorId);
@@ -89,6 +97,17 @@ export function recommend(
   const needsApproval = !!snapshot,
     status = needsApproval ? 'AWAITING_APPROVAL' : 'COMPLETED';
   const roles = [decision.authority.role];
+  const first = exceptions[0];
+  const action =
+    decision.outcome === 'ESCALATE_CONTROL_REVIEW'
+      ? 'Investigate supplier instructions'
+      : first?.code === 'MISSING_RECEIPT'
+        ? 'Provide the goods receipt for ' +
+          poNumber +
+          '; AP then re-submits the invoice as a new run'
+        : decision.unknowns.includes('invoiceLines')
+          ? 'Request invoice line details'
+          : 'Review invoice evidence';
   return runResult.parse({
     runId,
     caseId: r.caseId,
@@ -98,22 +117,18 @@ export function recommend(
       outcome: decision.outcome,
       nextAction: needsApproval
         ? { type: 'REQUEST_APPROVAL', roles, approvalId }
-        : {
-            owner: exceptions[0]?.owner ?? 'Accounts Payable',
-            action:
-              decision.outcome === 'ESCALATE_CONTROL_REVIEW'
-                ? 'Investigate supplier instructions'
-                : decision.unknowns.includes('invoiceLines')
-                  ? 'Request invoice line details'
-                  : 'Review invoice evidence',
-          },
+        : { owner: first?.owner ?? 'Accounts Payable', action },
     },
     sourcedFacts,
     calculations: decision.calculations,
     policyFindings: decision.findings,
     inferences: indicators,
     unknowns: decision.unknowns,
-    assumptions: ['Approval amount includes GST (FIN-POL-003 §1)'],
+    assumptions: [
+      'Approval amount includes GST (FIN-POL-003 §1)',
+      // Journals written before D-10 carry no assumptions.
+      ...(decision.assumptions ?? []),
+    ],
     exceptions,
     explanation,
     confidence: confidence(e, decision.unknowns),

@@ -2,10 +2,11 @@ import { Decimal } from 'decimal.js';
 import type { Extraction } from '../../evidence/extract.ts';
 import type { Review } from '../../domain/types.ts';
 import { totals } from '../calc.ts';
+import { invoiceLineAmount } from './threeWayMatch.ts';
 export function taxAndTotal(invoice: Extraction, rate: string) {
   const amounts = Array.from(
     { length: invoice.lineCount },
-    (_, i) => invoice.fields['line' + (i + 1) + '.lineAmount']?.value,
+    (_, i) => invoiceLineAmount(invoice, i + 1)?.amount,
   );
   const calculations: Review['calculations'] = [];
   if (amounts.some((a) => a === undefined)) return { passed: false, calculations };

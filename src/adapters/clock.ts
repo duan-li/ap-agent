@@ -1,8 +1,13 @@
 export interface Clock {
   now(): Date;
+  // Waits for a backoff. A fixed clock advances instead, so no test waits.
+  sleep(ms: number): Promise<void>;
 }
 
-export const systemClock: Clock = { now: () => new Date() };
+export const systemClock: Clock = {
+  now: () => new Date(),
+  sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+};
 
 export class FixedClock implements Clock {
   private epochMs: number;
@@ -14,6 +19,10 @@ export class FixedClock implements Clock {
 
   now() {
     return new Date(this.epochMs);
+  }
+
+  async sleep(ms: number) {
+    this.advance(ms);
   }
 
   advance(ms: number) {

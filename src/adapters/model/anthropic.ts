@@ -3,12 +3,12 @@ import { invoiceExtraction, rationale } from '../../domain/types.ts';
 import type { ModelProvider, ModelRequest } from './provider.ts';
 export class AnthropicModel implements ModelProvider {
   constructor(private readonly key: string) {}
-  async call(request: ModelRequest) {
+  async call(request: ModelRequest, signal?: AbortSignal) {
     const explain = request.purpose === 'explain';
     const schema = z.toJSONSchema(explain ? rationale : invoiceExtraction);
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.any([AbortSignal.timeout(30000), ...(signal ? [signal] : [])]),
       headers: {
         'content-type': 'application/json',
         'x-api-key': this.key,
