@@ -33,7 +33,7 @@ export function loadGreen() {
   return new Set(ids);
 }
 
-class NotImplemented extends Error {
+export class NotImplemented extends Error {
   constructor() {
     super('NotImplemented');
   }

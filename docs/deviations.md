@@ -55,3 +55,17 @@ Status is `Agreed` (decided before implementation), `Implemented` (in the code, 
 - **Why:** The verified v3 reference and repair responses contain quantity and unit price only.
 - **Impact:** A missing stated amount is missing evidence. Multiplying quantity by unit price cannot supply evidence of the amount printed on the invoice.
 - **Proof:** `tests/fake.test.ts` exercises both the invoice parser and the recorded repair response.
+
+## D-4 AI-strengthened red-line assertions
+
+- **Type:** Departure approved by the owner
+- **Status:** Implemented in M0; reviewed and approved by the owner on 2026-11-22
+- **Design reference:** AGENTS.md, Red lines ("never let an AI tool write its assertion"); TECH.md, Testing and acceptance; PLAN.md, Working rules 1
+- **What:** The owner wrote the initial four assertions in `tests/redlines.test.ts` by hand. An acceptance review then found gaps, and at the owner's request Claude strengthened them:
+  - RL-001 also resumes the run after the refused approval and checks that nothing is submitted.
+  - RL-002 also sends the same approval under a new delivery ID and checks that it creates no second decision or submit.
+  - RL-003 runs on FIN-001 and FIN-003 and uses `bankLeaks`. It flags a full account number (also when split by spaces or hyphens) and any 4+ digit fragment other than the last four. Digit runs are bounded by non-digits, so epoch-millisecond times in SQLite do not give false positives.
+  - RL-004 runs FIN-003 with the default and the `FIN-003-fooled` scripts. It checks that no approval is requested or frozen, that a forged approval ID is refused, and that the vendor master is unchanged. `TestRun` gained `vendorMaster()` for this.
+- **Why:** The owner chose to delegate the fixes. In the review, the first version passed a service that requested approval on FIN-003 and a service that submitted on resume. It also failed a correct service that stored epoch-millisecond times.
+- **Impact:** The added assertions are AI-written, so the independence the rule protects now rests on the owner's review of them. The owner should read each added assertion against the red line before M1 adds any red line to `eval/green.json`.
+- **Proof:** Each red line was run against a correct stub service and against stubs that break it (submit on resume, a second decision under a new delivery ID, spaced and prefix account leaks, approval requested, forged approval accepted, vendor master changed). Correct stubs passed, every broken stub failed, and epoch times did not trigger RL-003. The probe was a throwaway script and is not in the repository.
