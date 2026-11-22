@@ -46,3 +46,12 @@ Status is `Agreed` (decided before implementation), `Implemented` (in the code, 
 - **Impact:**
 - **Proof:**
 -->
+
+## D-3 Recorded extractions may omit a stated line amount
+
+- **Type:** Clarification
+- **Status:** Implemented in M0
+- **What:** The model response schema allows a missing `lineAmountRaw`. The default fake extracts this field for every supplied invoice. Named scripts replay their recorded responses.
+- **Why:** The verified v3 reference and repair responses contain quantity and unit price only.
+- **Impact:** A missing stated amount is missing evidence. Multiplying quantity by unit price cannot supply evidence of the amount printed on the invoice.
+- **Proof:** `tests/fake.test.ts` exercises both the invoice parser and the recorded repair response.

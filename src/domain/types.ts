@@ -17,7 +17,7 @@ export const exceptionCode = z.enum(['MISSING_PO', 'MISSING_RECEIPT', 'PRICE_VAR
   'DUPLICATE_RISK', 'VENDOR_BLOCK', 'BANK_CHANGE', 'AUTHORITY_GAP', 'TAX_QUERY', 'OTHER_CONTROL_RISK', 'RULE_VERSION_MISMATCH']);
 const writeAction = z.enum(['POST', 'REJECT_INVOICE']);
 export const financeAction = z.enum([...writeAction.options, 'NONE']);
-const vendorStatus = z.enum(['ACTIVE', 'BLOCKED']);
+const vendorStatus = z.enum(['ACTIVE', 'BLOCKED', 'DORMANT', 'SANCTIONS_REVIEW', 'PENDING_VERIFICATION']);
 export const vendor = object({
   vendorId: text, legalName: text, status: vendorStatus, createdAt: date, createdBy: text, country: text,
   bank: object({ bsb: text, accountNumber: z.string().regex(/^\d+$/), country: text, lastChangedAt: date, verified: z.boolean() }),
@@ -53,7 +53,7 @@ const field = object({ value: text, quote: text, chunkId: text });
 export const invoiceExtraction = object({
   invoiceNumber: field, invoiceDate: field, poNumber: field.optional(), currency: field,
   totalAmountRaw: field, taxAmountRaw: field,
-  lines: z.array(object({ description: field, quantityRaw: field, unitPriceRaw: field, lineAmountRaw: field })).min(1),
+  lines: z.array(object({ description: field, quantityRaw: field, unitPriceRaw: field, lineAmountRaw: field.optional() })).min(1),
   suspiciousContent: strings,
 });
 export const modelPurpose = z.enum(['extract', 'extract-repair', 'explain']);
@@ -68,7 +68,7 @@ export const modelScript = object({
 
 export const request = object({
   caseId: text, invoiceRef: text, vendor: text, amount: decimalString, currency,
-  notes: z.string().nullish(), attachments: strings.min(1),
+  notes: z.string().nullish(), attachments: strings.optional(),
 });
 const vendorChange = object({ vendorId: text, set: object({ status: vendorStatus }) });
 const faults = object({
