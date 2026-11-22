@@ -1,0 +1,38 @@
+{
+  "id": "delivery-id-conflict",
+  "description": "Same delivery ID arrives with a different decision; refused as a conflict; the first decision stands.",
+  "priority": "optional",
+  "request": {
+    "caseId": "delivery-id-conflict",
+    "invoiceRef": "INV-88412",
+    "vendor": "V-1007",
+    "amount": "17600.00",
+    "currency": "AUD",
+    "notes": null,
+    "attachments": [
+      "fixtures/attachments/INV-88412.txt"
+    ]
+  },
+  "faults": {},
+  "modelScript": "default",
+  "approvals": [
+    {
+      "approver": "u-204",
+      "decision": "APPROVE",
+      "deliveryId": "dlv-020",
+      "expectResult": "ok"
+    },
+    {
+      "approver": "u-204",
+      "decision": "REJECT",
+      "deliveryId": "dlv-020",
+      "expectResult": "Conflict"
+    }
+  ],
+  "expect": {
+    "outcome": "APPROVE_FOR_POSTING",
+    "finalStatus": "COMPLETED",
+    "financeActions": 1
+  },
+  "basedOn": "FIN-001"
+}

@@ -1,0 +1,73 @@
+{
+  "id": "FIN-001",
+  "description": "Invoice, PO and receipt agree exactly; Department Director approves; one effective posting.",
+  "priority": "required",
+  "request": {
+    "caseId": "FIN-001",
+    "invoiceRef": "INV-88412",
+    "vendor": "V-1007",
+    "amount": "17600.00",
+    "currency": "AUD",
+    "notes": "Quarterly hardware order, PO-55210",
+    "attachments": [
+      "fixtures/attachments/INV-88412.txt"
+    ]
+  },
+  "faults": {},
+  "modelScript": "default",
+  "approvals": [
+    {
+      "approver": "u-204",
+      "decision": "APPROVE",
+      "deliveryId": "dlv-001",
+      "expectResult": "ok"
+    }
+  ],
+  "expect": {
+    "statusBeforeApproval": "AWAITING_APPROVAL",
+    "outcome": "APPROVE_FOR_POSTING",
+    "actionsTakenBeforeApproval": [],
+    "finalStatus": "COMPLETED",
+    "requiredApprovers": [
+      "DEPARTMENT_DIRECTOR"
+    ],
+    "exceptions": [],
+    "calculations": [
+      {
+        "check": "LINE_PRICE_TOLERANCE",
+        "line": 1,
+        "variance": "0.00",
+        "threshold": "50.00",
+        "withinTolerance": true
+      }
+    ],
+    "mustCite": [
+      {
+        "doc": "FIN-POL-002",
+        "section": "§2",
+        "finding": "THREE_WAY_MATCH"
+      },
+      {
+        "doc": "FIN-POL-003",
+        "section": "§2",
+        "finding": "APPROVAL_REQUIREMENT"
+      }
+    ],
+    "mustNotCite": [
+      "FIN-POL-003-OLD",
+      "ADV-002"
+    ],
+    "approvalSnapshotFields": [
+      "action",
+      "vendorId",
+      "invoiceRef",
+      "amount",
+      "currency",
+      "bankAccountVersion",
+      "policyVersions"
+    ],
+    "vendorRecheckedBeforeSubmit": true,
+    "financeActionType": "POST",
+    "financeActions": 1
+  }
+}

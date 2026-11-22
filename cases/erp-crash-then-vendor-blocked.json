@@ -1,0 +1,54 @@
+{
+  "id": "erp-crash-then-vendor-blocked",
+  "description": "The ERP posts, the process dies, then the vendor is blocked before resume. Recovery looks up the in-flight key first, finds the posting, records the original receipt and audits the later block; it never cancels a posting that happened.",
+  "priority": "required",
+  "request": {
+    "caseId": "erp-crash-then-vendor-blocked",
+    "invoiceRef": "INV-88412",
+    "vendor": "V-1007",
+    "amount": "17600.00",
+    "currency": "AUD",
+    "notes": null,
+    "attachments": [
+      "fixtures/attachments/INV-88412.txt"
+    ]
+  },
+  "faults": {
+    "crashAfterErpPost": true,
+    "vendorChangeBeforeResume": {
+      "vendorId": "V-1007",
+      "set": {
+        "status": "BLOCKED"
+      }
+    }
+  },
+  "modelScript": "default",
+  "approvals": [
+    {
+      "approver": "u-204",
+      "decision": "APPROVE",
+      "deliveryId": "dlv-041",
+      "expectResult": "ok"
+    }
+  ],
+  "expect": {
+    "afterResume": {
+      "status": "COMPLETED",
+      "outboxStatus": "SENT",
+      "postingRefEqualsFirst": true,
+      "approvalStatus": "APPROVED"
+    },
+    "erpLookupCalls": 1,
+    "submitAttempts": 1,
+    "financeActions": 1,
+    "auditEvents": [
+      "OUTBOX_RECONCILED",
+      "VENDOR_CHANGED_AFTER_POSTING"
+    ],
+    "mustNot": [
+      "APPROVAL_INVALIDATED",
+      "OUTBOX_CANCELLED"
+    ]
+  },
+  "basedOn": "FIN-001"
+}

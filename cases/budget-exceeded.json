@@ -1,0 +1,40 @@
+{
+  "id": "budget-exceeded",
+  "description": "Tool-call budget of 4 runs out while the PO tool keeps timing out; run fails with a reason; resume does not reset the budget.",
+  "priority": "required",
+  "request": {
+    "caseId": "budget-exceeded",
+    "invoiceRef": "INV-88530",
+    "vendor": "V-1007",
+    "amount": "7700.00",
+    "currency": "AUD",
+    "notes": null,
+    "attachments": [
+      "fixtures/attachments/INV-88530.txt"
+    ]
+  },
+  "faults": {
+    "get_purchase_order": {
+      "timeoutTimes": 99
+    },
+    "budget": {
+      "maxToolCalls": 4
+    }
+  },
+  "modelScript": "default",
+  "approvals": [],
+  "expect": {
+    "finalStatus": "FAILED",
+    "failureReason": "BUDGET_EXCEEDED",
+    "toolCallsTotalMax": 4,
+    "afterResume": {
+      "status": "FAILED",
+      "additionalToolCalls": 0
+    },
+    "auditEvents": [
+      "BUDGET_EXCEEDED"
+    ],
+    "financeActions": 0
+  },
+  "basedOn": "FIN-004"
+}

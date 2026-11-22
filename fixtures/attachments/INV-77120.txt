@@ -1,0 +1,14 @@
+TAX INVOICE
+Southgate Office Pty Ltd  ABN 00 000 000 012
+Invoice No: INV-77120
+Invoice date: 2026-09-18
+Purchase order: PO-58020
+Bill to: Northstar Group, Accounts Payable
+
+1. Office supplies bundle Q3  Qty 1  Unit $4,500.00  Amount $4,500.00
+
+Subtotal $4,500.00
+GST 10% $450.00
+Total due (AUD) $4,950.00
+Payment terms: 30 days from receipt
+Remit to: BSB 033-000 Account ending 2290

@@ -1,0 +1,114 @@
+{
+  "_note": "Synthetic test data for the AP agent take-home. No real people, companies or accounts.",
+  "records": [
+    {
+      "vendorId": "V-1007",
+      "legalName": "Northwind Supplies Pty Ltd",
+      "status": "ACTIVE",
+      "createdAt": "2024-03-11",
+      "createdBy": "u-120",
+      "country": "AU",
+      "bank": {
+        "bsb": "063-000",
+        "accountNumber": "10284471",
+        "country": "AU",
+        "lastChangedAt": "2024-03-11",
+        "verified": true
+      },
+      "knownContact": {
+        "phone": "+61 3 9000 1007",
+        "email": "ap@northwind.example"
+      },
+      "riskFlags": [],
+      "lastUpdated": "2026-09-30T02:10:00Z"
+    },
+    {
+      "vendorId": "V-1012",
+      "legalName": "Southgate Office Pty Ltd",
+      "status": "ACTIVE",
+      "createdAt": "2023-08-02",
+      "createdBy": "u-120",
+      "country": "AU",
+      "bank": {
+        "bsb": "033-000",
+        "accountNumber": "55102290",
+        "country": "AU",
+        "lastChangedAt": "2023-08-02",
+        "verified": true
+      },
+      "knownContact": {
+        "phone": "+61 3 9000 1012",
+        "email": "accounts@southgate.example"
+      },
+      "riskFlags": [],
+      "lastUpdated": "2026-08-14T05:00:00Z"
+    },
+    {
+      "vendorId": "V-1031",
+      "legalName": "Harbour Logistics Pty Ltd",
+      "status": "ACTIVE",
+      "createdAt": "2025-06-19",
+      "createdBy": "u-121",
+      "country": "AU",
+      "bank": {
+        "bsb": "082-000",
+        "accountNumber": "77311937",
+        "country": "AU",
+        "lastChangedAt": "2025-06-19",
+        "verified": true
+      },
+      "knownContact": {
+        "phone": "+61 3 9000 1031",
+        "email": "billing@harbourlogistics.example"
+      },
+      "riskFlags": [],
+      "lastUpdated": "2026-10-20T01:30:00Z"
+    },
+    {
+      "vendorId": "V-1040",
+      "legalName": "Brightline Services Pty Ltd",
+      "status": "ACTIVE",
+      "createdAt": "2026-11-05",
+      "createdBy": "u-215",
+      "country": "AU",
+      "bank": {
+        "bsb": "062-000",
+        "accountNumber": "40019050",
+        "country": "AU",
+        "lastChangedAt": "2026-11-05",
+        "verified": true
+      },
+      "knownContact": {
+        "phone": "+61 3 9000 1040",
+        "email": "finance@brightline.example"
+      },
+      "riskFlags": [
+        "NEW_VENDOR"
+      ],
+      "lastUpdated": "2026-11-05T03:00:00Z"
+    },
+    {
+      "vendorId": "V-1050",
+      "legalName": "Eastwood Packaging Pty Ltd",
+      "status": "BLOCKED",
+      "createdAt": "2022-02-14",
+      "createdBy": "u-120",
+      "country": "AU",
+      "bank": {
+        "bsb": "013-000",
+        "accountNumber": "90213366",
+        "country": "AU",
+        "lastChangedAt": "2022-02-14",
+        "verified": true
+      },
+      "knownContact": {
+        "phone": "+61 3 9000 1050",
+        "email": "ar@eastwood.example"
+      },
+      "riskFlags": [
+        "BLOCKED_BY_VENDOR_GOVERNANCE"
+      ],
+      "lastUpdated": "2026-10-01T00:00:00Z"
+    }
+  ]
+}

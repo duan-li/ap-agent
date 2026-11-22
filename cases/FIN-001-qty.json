@@ -1,0 +1,36 @@
+{
+  "id": "FIN-001-qty",
+  "description": "Invoiced quantity 11 exceeds received quantity 10; hold.",
+  "priority": "optional",
+  "request": {
+    "caseId": "FIN-001-qty",
+    "invoiceRef": "INV-88412",
+    "vendor": "V-1007",
+    "amount": "18920.00",
+    "currency": "AUD",
+    "notes": null,
+    "attachments": [
+      "fixtures/attachments/INV-88412-qty.txt"
+    ]
+  },
+  "faults": {},
+  "modelScript": "default",
+  "approvals": [],
+  "expect": {
+    "outcome": "HOLD_FOR_INFORMATION",
+    "exceptions": [
+      "QUANTITY_VARIANCE"
+    ],
+    "calculations": [
+      {
+        "check": "LINE_QUANTITY",
+        "line": 1,
+        "invoiced": 11,
+        "received": 10,
+        "withinTolerance": false
+      }
+    ],
+    "financeActions": 0
+  },
+  "basedOn": "FIN-001"
+}

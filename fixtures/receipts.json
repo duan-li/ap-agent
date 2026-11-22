@@ -1,0 +1,71 @@
+{
+  "_note": "Synthetic test data for the AP agent take-home. No real people, companies or accounts. PO-55388 deliberately has no receipt (FIN-004).",
+  "records": [
+    {
+      "receiptId": "GRN-7781",
+      "poNumber": "PO-55210",
+      "receivedAt": "2026-11-06",
+      "receivedBy": "u-330",
+      "lines": [
+        {
+          "line": 1,
+          "quantityReceived": 10
+        },
+        {
+          "line": 2,
+          "quantityReceived": 10
+        }
+      ]
+    },
+    {
+      "receiptId": "GRN-7790",
+      "poNumber": "PO-58020",
+      "receivedAt": "2026-09-15",
+      "receivedBy": "u-331",
+      "lines": [
+        {
+          "line": 1,
+          "quantityReceived": 1
+        }
+      ]
+    },
+    {
+      "receiptId": "GRN-7802",
+      "poNumber": "PO-60114",
+      "receivedAt": "2026-11-03",
+      "receivedBy": "u-341",
+      "serviceConfirmedBy": "u-341",
+      "lines": [
+        {
+          "line": 1,
+          "quantityReceived": 1
+        }
+      ]
+    },
+    {
+      "receiptId": "GRN-7811",
+      "poNumber": "PO-61002",
+      "receivedAt": "2026-11-14",
+      "receivedBy": "u-342",
+      "serviceConfirmedBy": "u-342",
+      "lines": [
+        {
+          "line": 1,
+          "quantityReceived": 1
+        }
+      ]
+    },
+    {
+      "receiptId": "GRN-7820",
+      "poNumber": "PO-61500",
+      "receivedAt": "2026-11-12",
+      "receivedBy": "u-330",
+      "lines": [
+        {
+          "line": 1,
+          "quantityReceived": 5
+        }
+      ]
+    }
+  ]
+}

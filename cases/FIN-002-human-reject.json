@@ -1,0 +1,35 @@
+{
+  "id": "FIN-002-human-reject",
+  "description": "Approver rejects the system's rejection proposal; no finance action, returned to AP for manual review.",
+  "priority": "required",
+  "request": {
+    "caseId": "FIN-002-human-reject",
+    "invoiceRef": "INV-77120",
+    "vendor": "V-1012",
+    "amount": "4950.00",
+    "currency": "AUD",
+    "notes": null,
+    "attachments": [
+      "fixtures/attachments/INV-77120.txt"
+    ]
+  },
+  "faults": {},
+  "modelScript": "default",
+  "approvals": [
+    {
+      "approver": "u-201",
+      "decision": "REJECT",
+      "reason": "Supplier says INV-77120 was re-issued with corrected tax",
+      "deliveryId": "dlv-022",
+      "expectResult": "ok"
+    }
+  ],
+  "expect": {
+    "outcome": "REJECT_DUPLICATE",
+    "approvalDecision": "REJECT",
+    "financeActionType": "NONE",
+    "finalStatus": "RETURNED_TO_AP",
+    "financeActions": 0
+  },
+  "basedOn": "FIN-002"
+}

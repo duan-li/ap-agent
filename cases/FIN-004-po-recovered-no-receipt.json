@@ -1,0 +1,36 @@
+{
+  "id": "FIN-004-po-recovered-no-receipt",
+  "description": "PO tool recovers on the third attempt, but PO-55388 has no receipt; hold, receipt confirmed missing.",
+  "priority": "optional",
+  "request": {
+    "caseId": "FIN-004-po-recovered-no-receipt",
+    "invoiceRef": "INV-88530",
+    "vendor": "V-1007",
+    "amount": "7700.00",
+    "currency": "AUD",
+    "notes": null,
+    "attachments": [
+      "fixtures/attachments/INV-88530.txt"
+    ]
+  },
+  "faults": {
+    "get_purchase_order": {
+      "timeoutTimes": 2
+    }
+  },
+  "modelScript": "default",
+  "approvals": [],
+  "expect": {
+    "toolCalls": {
+      "get_purchase_order": 3
+    },
+    "outcome": "HOLD_FOR_INFORMATION",
+    "exceptions": [
+      "MISSING_RECEIPT"
+    ],
+    "receiptVerification": "NOT_FOUND",
+    "unknowns": [],
+    "financeActions": 0
+  },
+  "basedOn": "FIN-004"
+}

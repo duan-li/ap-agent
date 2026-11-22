@@ -1,0 +1,96 @@
+{
+  "_note": "Reference script: what a correct model returns for FIN-001. The default fake model derives the same output by parsing the fixed invoice format. Every extracted value appears inside its own quote; every rationale sentence cites a finding produced by Rules.",
+  "calls": [
+    {
+      "purpose": "extract",
+      "response": {
+        "invoiceNumber": {
+          "value": "INV-88412",
+          "chunkId": "ATT-INV-88412",
+          "quote": "Invoice No: INV-88412"
+        },
+        "invoiceDate": {
+          "value": "2026-11-10",
+          "chunkId": "ATT-INV-88412",
+          "quote": "Invoice date: 2026-11-10"
+        },
+        "poNumber": {
+          "value": "PO-55210",
+          "chunkId": "ATT-INV-88412",
+          "quote": "Purchase order: PO-55210"
+        },
+        "currency": {
+          "value": "AUD",
+          "chunkId": "ATT-INV-88412",
+          "quote": "Total due (AUD)"
+        },
+        "totalAmountRaw": {
+          "value": "$17,600.00",
+          "chunkId": "ATT-INV-88412",
+          "quote": "Total due (AUD) $17,600.00"
+        },
+        "taxAmountRaw": {
+          "value": "$1,600.00",
+          "chunkId": "ATT-INV-88412",
+          "quote": "GST 10% $1,600.00"
+        },
+        "lines": [
+          {
+            "description": {
+              "value": "Laptop 14in",
+              "chunkId": "ATT-INV-88412",
+              "quote": "1. Laptop 14in"
+            },
+            "quantityRaw": {
+              "value": "10",
+              "chunkId": "ATT-INV-88412",
+              "quote": "Qty 10  Unit $1,200.00"
+            },
+            "unitPriceRaw": {
+              "value": "$1,200.00",
+              "chunkId": "ATT-INV-88412",
+              "quote": "Unit $1,200.00"
+            }
+          },
+          {
+            "description": {
+              "value": "Docking station",
+              "chunkId": "ATT-INV-88412",
+              "quote": "2. Docking station"
+            },
+            "quantityRaw": {
+              "value": "10",
+              "chunkId": "ATT-INV-88412",
+              "quote": "Qty 10  Unit $400.00"
+            },
+            "unitPriceRaw": {
+              "value": "$400.00",
+              "chunkId": "ATT-INV-88412",
+              "quote": "Unit $400.00"
+            }
+          }
+        ],
+        "suspiciousContent": []
+      }
+    },
+    {
+      "purpose": "explain",
+      "response": {
+        "rationale": [
+          {
+            "text": "Invoice, purchase order and goods receipt agree on every line.",
+            "findingIds": [
+              "F-THREE_WAY_MATCH"
+            ]
+          },
+          {
+            "text": "The total of AUD 17,600.00 requires Department Director approval.",
+            "findingIds": [
+              "F-APPROVAL_REQUIREMENT"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

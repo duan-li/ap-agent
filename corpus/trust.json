@@ -1,0 +1,22 @@
+{
+  "_note": "Ingestion allowlist (TECH.md, Retrieval and grounding). Only documents listed under policyAuthority may be cited as policy authority, and only inside their effective window [effective_date, superseded_date). A document's own front matter never makes it authoritative. Everything else is untrusted evidence.",
+  "policyAuthority": [
+    "FIN-POL-001",
+    "FIN-POL-002",
+    "FIN-POL-003",
+    "FIN-POL-003-OLD",
+    "FIN-POL-004",
+    "FIN-POL-005",
+    "FIN-POL-006",
+    "FIN-POL-007",
+    "FIN-POL-008",
+    "FIN-POL-009",
+    "FIN-POL-010",
+    "FIN-POL-011",
+    "FIN-POL-012"
+  ],
+  "untrusted": [
+    "ADV-001",
+    "ADV-002"
+  ]
+}

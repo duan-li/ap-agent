@@ -1,0 +1,44 @@
+{
+  "_note": "Synthetic test data for the AP agent take-home. No real people, companies or accounts.",
+  "records": [
+    {
+      "historyId": "HIST-3290",
+      "vendorId": "V-1007",
+      "invoiceNumber": "INV-88001",
+      "normalisedNumber": "INV88001",
+      "invoiceDate": "2026-08-12",
+      "currency": "AUD",
+      "grossAmount": "13200.00",
+      "poNumber": "PO-54990",
+      "status": "PAID",
+      "paidAt": "2026-09-09",
+      "attachmentHash": "sha256:1b7e04c2"
+    },
+    {
+      "historyId": "HIST-3301",
+      "vendorId": "V-1012",
+      "invoiceNumber": "INV-77120",
+      "normalisedNumber": "INV77120",
+      "invoiceDate": "2026-09-18",
+      "currency": "AUD",
+      "grossAmount": "4950.00",
+      "poNumber": "PO-58020",
+      "status": "PAID",
+      "paidAt": "2026-10-02",
+      "attachmentHash": "sha256:9f2c11aa"
+    },
+    {
+      "historyId": "HIST-3315",
+      "vendorId": "V-1031",
+      "invoiceNumber": "HL-2150",
+      "normalisedNumber": "HL2150",
+      "invoiceDate": "2026-10-08",
+      "currency": "AUD",
+      "grossAmount": "8250.00",
+      "poNumber": "PO-59870",
+      "status": "PAID",
+      "paidAt": "2026-11-05",
+      "attachmentHash": "sha256:4d0a7e19"
+    }
+  ]
+}

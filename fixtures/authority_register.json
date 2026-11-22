@@ -1,0 +1,54 @@
+{
+  "_note": "Synthetic test data for the AP agent take-home. No real people, companies or accounts.",
+  "registerVersion": "AR-2026.11",
+  "effectiveFrom": "2026-11-01",
+  "policyRef": "FIN-POL-003 v4.0",
+  "approvers": [
+    {
+      "userId": "u-201",
+      "name": "Cost Centre Manager A",
+      "role": "COST_CENTRE_MANAGER",
+      "limitAud": "10000.00",
+      "financialControl": false
+    },
+    {
+      "userId": "u-204",
+      "name": "Department Director B",
+      "role": "DEPARTMENT_DIRECTOR",
+      "limitAud": "50000.00",
+      "financialControl": false
+    },
+    {
+      "userId": "u-215",
+      "name": "Department Director C",
+      "role": "DEPARTMENT_DIRECTOR",
+      "limitAud": "50000.00",
+      "financialControl": false,
+      "note": "Created vendor V-1040 on 2026-11-05; may not approve its invoices (FIN-POL-001 §4, FIN-POL-003 §1)."
+    },
+    {
+      "userId": "u-310",
+      "name": "Financial Control Analyst D",
+      "role": "FINANCIAL_CONTROL",
+      "limitAud": "50000.00",
+      "financialControl": true
+    },
+    {
+      "userId": "u-401",
+      "name": "Executive Director E",
+      "role": "EXECUTIVE_DIRECTOR",
+      "limitAud": "250000.00",
+      "financialControl": false
+    }
+  ],
+  "delegations": [
+    {
+      "delegate": "u-202",
+      "delegator": "u-204",
+      "scope": "OPEX",
+      "start": "2026-10-01",
+      "end": "2026-10-31",
+      "note": "Expired; invalid for any current approval (FIN-POL-003 §4)."
+    }
+  ]
+}

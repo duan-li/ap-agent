@@ -1,0 +1,50 @@
+{
+  "id": "approval-invalidated",
+  "description": "Vendor is blocked after approval but before submit; the approval snapshot no longer matches; approval invalidated, outbox cancelled, run held.",
+  "priority": "required",
+  "request": {
+    "caseId": "approval-invalidated",
+    "invoiceRef": "INV-88412",
+    "vendor": "V-1007",
+    "amount": "17600.00",
+    "currency": "AUD",
+    "notes": null,
+    "attachments": [
+      "fixtures/attachments/INV-88412.txt"
+    ]
+  },
+  "faults": {
+    "vendorChangeBeforeSubmit": {
+      "vendorId": "V-1007",
+      "set": {
+        "status": "BLOCKED"
+      }
+    }
+  },
+  "modelScript": "default",
+  "approvals": [
+    {
+      "approver": "u-204",
+      "decision": "APPROVE",
+      "deliveryId": "dlv-030",
+      "expectResult": "ok"
+    }
+  ],
+  "expect": {
+    "outcome": "APPROVE_FOR_POSTING",
+    "approvalStatusAfter": "INVALIDATED",
+    "outboxStatus": "CANCELLED",
+    "finalOutcome": "HOLD_FOR_INFORMATION",
+    "finalExceptions": [
+      "VENDOR_BLOCK"
+    ],
+    "finalStatus": "COMPLETED",
+    "auditEvents": [
+      "APPROVAL_INVALIDATED",
+      "OUTBOX_CANCELLED"
+    ],
+    "submitAttempts": 0,
+    "financeActions": 0
+  },
+  "basedOn": "FIN-001"
+}

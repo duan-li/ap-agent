@@ -1,0 +1,32 @@
+{
+  "id": "FIN-001-wrong-approver",
+  "description": "Cost Centre Manager (limit AUD 10,000) tries to approve AUD 17,600; refused, nothing submitted.",
+  "priority": "required",
+  "request": {
+    "caseId": "FIN-001-wrong-approver",
+    "invoiceRef": "INV-88412",
+    "vendor": "V-1007",
+    "amount": "17600.00",
+    "currency": "AUD",
+    "notes": null,
+    "attachments": [
+      "fixtures/attachments/INV-88412.txt"
+    ]
+  },
+  "faults": {},
+  "modelScript": "default",
+  "approvals": [
+    {
+      "approver": "u-201",
+      "decision": "APPROVE",
+      "deliveryId": "dlv-004",
+      "expectResult": "Unauthorized"
+    }
+  ],
+  "expect": {
+    "outcome": "APPROVE_FOR_POSTING",
+    "finalStatus": "AWAITING_APPROVAL",
+    "financeActions": 0
+  },
+  "basedOn": "FIN-001"
+}

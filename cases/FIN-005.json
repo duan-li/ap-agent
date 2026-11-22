@@ -1,0 +1,43 @@
+{
+  "id": "FIN-005",
+  "description": "Same approval callback delivered twice; one effective decision, replay-safe response.",
+  "priority": "required",
+  "request": {
+    "caseId": "FIN-005",
+    "invoiceRef": "INV-88412",
+    "vendor": "V-1007",
+    "amount": "17600.00",
+    "currency": "AUD",
+    "notes": null,
+    "attachments": [
+      "fixtures/attachments/INV-88412.txt"
+    ]
+  },
+  "faults": {},
+  "modelScript": "default",
+  "approvals": [
+    {
+      "approver": "u-204",
+      "decision": "APPROVE",
+      "deliveryId": "dlv-7f3",
+      "expectResult": "ok"
+    },
+    {
+      "approver": "u-204",
+      "decision": "APPROVE",
+      "deliveryId": "dlv-7f3",
+      "expectResult": "duplicate",
+      "sameResponseAs": 0
+    }
+  ],
+  "expect": {
+    "outcome": "APPROVE_FOR_POSTING",
+    "finalStatus": "COMPLETED",
+    "financeActions": 1,
+    "auditEvents": [
+      "APPROVAL_DUPLICATE_IGNORED"
+    ],
+    "concurrentVariant": "Send both callbacks with Promise.all; exactly one wins, financeActions stays 1."
+  },
+  "basedOn": "FIN-001"
+}

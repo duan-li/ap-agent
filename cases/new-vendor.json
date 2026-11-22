@@ -1,0 +1,56 @@
+{
+  "id": "new-vendor",
+  "description": "Vendor created 10 days before the invoice; two approvals needed, one from Financial Control; the vendor's creator may not approve.",
+  "priority": "optional",
+  "request": {
+    "caseId": "new-vendor",
+    "invoiceRef": "BL-0001",
+    "vendor": "V-1040",
+    "amount": "9900.00",
+    "currency": "AUD",
+    "notes": null,
+    "attachments": [
+      "fixtures/attachments/BL-0001.txt"
+    ]
+  },
+  "faults": {},
+  "modelScript": "default",
+  "approvals": [
+    {
+      "approver": "u-215",
+      "decision": "APPROVE",
+      "deliveryId": "dlv-010",
+      "expectResult": "Unauthorized",
+      "reason": "created the vendor"
+    },
+    {
+      "approver": "u-201",
+      "decision": "APPROVE",
+      "deliveryId": "dlv-011",
+      "expectResult": "ok",
+      "expectStatusAfter": "AWAITING_APPROVAL"
+    },
+    {
+      "approver": "u-310",
+      "decision": "APPROVE",
+      "deliveryId": "dlv-012",
+      "expectResult": "ok",
+      "expectStatusAfter": "COMPLETED"
+    }
+  ],
+  "expect": {
+    "outcome": "APPROVE_FOR_POSTING",
+    "requiredApprovers": [
+      "COST_CENTRE_MANAGER",
+      "FINANCIAL_CONTROL"
+    ],
+    "mustCite": [
+      {
+        "doc": "FIN-POL-003",
+        "section": "§3",
+        "finding": "HIGHER_RISK_TWO_APPROVALS"
+      }
+    ],
+    "financeActions": 1
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "id": "erp-crash-before-post",
+  "description": "The outbox is marked SENDING, then the process dies before the ERP call. Recovery finds no ERP record, re-runs the pre-submit checks and submits once.",
+  "priority": "optional",
+  "request": {
+    "caseId": "erp-crash-before-post",
+    "invoiceRef": "INV-88412",
+    "vendor": "V-1007",
+    "amount": "17600.00",
+    "currency": "AUD",
+    "notes": null,
+    "attachments": [
+      "fixtures/attachments/INV-88412.txt"
+    ]
+  },
+  "faults": {
+    "crashAfterOutboxSending": true
+  },
+  "modelScript": "default",
+  "approvals": [
+    {
+      "approver": "u-204",
+      "decision": "APPROVE",
+      "deliveryId": "dlv-042",
+      "expectResult": "ok"
+    }
+  ],
+  "expect": {
+    "afterCrash": {
+      "status": "SUBMITTING",
+      "outboxStatus": "SENDING",
+      "erpPostings": 0
+    },
+    "afterResume": {
+      "status": "COMPLETED",
+      "outboxStatus": "SENT"
+    },
+    "erpLookupCalls": 1,
+    "vendorRecheckedBeforeSubmit": true,
+    "submitAttempts": 1,
+    "financeActions": 1
+  },
+  "basedOn": "FIN-001"
+}

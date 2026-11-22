@@ -1,0 +1,46 @@
+{
+  "id": "FIN-001-tol-breach",
+  "description": "Unit price one cent higher: line variance 50.10 over the limit; hold with the failed line identified.",
+  "priority": "required",
+  "request": {
+    "caseId": "FIN-001-tol-breach",
+    "invoiceRef": "INV-88412",
+    "vendor": "V-1007",
+    "amount": "17655.11",
+    "currency": "AUD",
+    "notes": null,
+    "attachments": [
+      "fixtures/attachments/INV-88412-tol-breach.txt"
+    ]
+  },
+  "faults": {},
+  "modelScript": "default",
+  "approvals": [],
+  "expect": {
+    "outcome": "HOLD_FOR_INFORMATION",
+    "exceptions": [
+      "PRICE_VARIANCE"
+    ],
+    "calculations": [
+      {
+        "check": "LINE_PRICE_TOLERANCE",
+        "line": 1,
+        "variance": "50.10",
+        "threshold": "50.00",
+        "withinTolerance": false
+      }
+    ],
+    "exceptionRecordHas": [
+      "failedRule",
+      "failedLine",
+      "expected",
+      "observed",
+      "difference",
+      "threshold",
+      "owner",
+      "nextReviewDate"
+    ],
+    "financeActions": 0
+  },
+  "basedOn": "FIN-001"
+}

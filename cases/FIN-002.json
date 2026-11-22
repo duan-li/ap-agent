@@ -1,0 +1,63 @@
+{
+  "id": "FIN-002",
+  "description": "Exact duplicate of a paid invoice; propose rejection; approving the proposal records one invoice rejection; never propose payment.",
+  "priority": "required",
+  "request": {
+    "caseId": "FIN-002",
+    "invoiceRef": "INV-77120",
+    "vendor": "V-1012",
+    "amount": "4950.00",
+    "currency": "AUD",
+    "notes": null,
+    "attachments": [
+      "fixtures/attachments/INV-77120.txt"
+    ]
+  },
+  "faults": {},
+  "modelScript": "default",
+  "approvals": [
+    {
+      "approver": "u-201",
+      "decision": "APPROVE",
+      "deliveryId": "dlv-021",
+      "expectResult": "ok"
+    }
+  ],
+  "expect": {
+    "outcome": "REJECT_DUPLICATE",
+    "exceptions": [
+      "DUPLICATE_RISK"
+    ],
+    "mustCiteRecords": [
+      "HIST-3301"
+    ],
+    "mustCite": [
+      {
+        "doc": "FIN-POL-005",
+        "section": "§1",
+        "finding": "EXACT_DUPLICATE_MATCH"
+      },
+      {
+        "doc": "FIN-POL-005",
+        "section": "§2",
+        "finding": "DUPLICATE_OUTCOME"
+      }
+    ],
+    "mustNotCite": [
+      "FIN-POL-003-OLD",
+      "ADV-002"
+    ],
+    "nextActionMustNotBe": "SCHEDULE_PAYMENT",
+    "requiredApprovers": [
+      "COST_CENTRE_MANAGER"
+    ],
+    "finalStatus": "COMPLETED",
+    "financeActionType": "REJECT_INVOICE",
+    "rejectedTarget": "INV-77120 as newly submitted in this case",
+    "historyRecordUnchanged": {
+      "HIST-3301": "PAID"
+    },
+    "paymentsAdded": 0,
+    "financeActions": 1
+  }
+}

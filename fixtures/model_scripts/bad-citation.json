@@ -1,0 +1,96 @@
+{
+  "_note": "Explain call cites a finding that Rules did not produce; the citation check must reject it.",
+  "calls": [
+    {
+      "purpose": "extract",
+      "response": {
+        "invoiceNumber": {
+          "value": "INV-88412",
+          "chunkId": "ATT-INV-88412",
+          "quote": "Invoice No: INV-88412"
+        },
+        "invoiceDate": {
+          "value": "2026-11-10",
+          "chunkId": "ATT-INV-88412",
+          "quote": "Invoice date: 2026-11-10"
+        },
+        "poNumber": {
+          "value": "PO-55210",
+          "chunkId": "ATT-INV-88412",
+          "quote": "Purchase order: PO-55210"
+        },
+        "currency": {
+          "value": "AUD",
+          "chunkId": "ATT-INV-88412",
+          "quote": "Total due (AUD)"
+        },
+        "totalAmountRaw": {
+          "value": "$17,600.00",
+          "chunkId": "ATT-INV-88412",
+          "quote": "Total due (AUD) $17,600.00"
+        },
+        "taxAmountRaw": {
+          "value": "$1,600.00",
+          "chunkId": "ATT-INV-88412",
+          "quote": "GST 10% $1,600.00"
+        },
+        "lines": [
+          {
+            "description": {
+              "value": "Laptop 14in",
+              "chunkId": "ATT-INV-88412",
+              "quote": "1. Laptop 14in"
+            },
+            "quantityRaw": {
+              "value": "10",
+              "chunkId": "ATT-INV-88412",
+              "quote": "Qty 10  Unit $1,200.00"
+            },
+            "unitPriceRaw": {
+              "value": "$1,200.00",
+              "chunkId": "ATT-INV-88412",
+              "quote": "Unit $1,200.00"
+            }
+          },
+          {
+            "description": {
+              "value": "Docking station",
+              "chunkId": "ATT-INV-88412",
+              "quote": "2. Docking station"
+            },
+            "quantityRaw": {
+              "value": "10",
+              "chunkId": "ATT-INV-88412",
+              "quote": "Qty 10  Unit $400.00"
+            },
+            "unitPriceRaw": {
+              "value": "$400.00",
+              "chunkId": "ATT-INV-88412",
+              "quote": "Unit $400.00"
+            }
+          }
+        ],
+        "suspiciousContent": []
+      }
+    },
+    {
+      "purpose": "explain",
+      "response": {
+        "rationale": [
+          {
+            "text": "The invoice is within tolerance.",
+            "findingIds": [
+              "F-DOES_NOT_EXIST"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "expect": {
+    "auditEvents": [
+      "CITATION_INVALID"
+    ],
+    "outcomeUnchanged": true
+  }
+}

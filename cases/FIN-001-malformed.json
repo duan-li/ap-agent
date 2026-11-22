@@ -1,0 +1,30 @@
+{
+  "id": "FIN-001-malformed",
+  "description": "Model returns malformed JSON once; repaired on retry.",
+  "priority": "required",
+  "request": {
+    "caseId": "FIN-001-malformed",
+    "invoiceRef": "INV-88412",
+    "vendor": "V-1007",
+    "amount": "17600.00",
+    "currency": "AUD",
+    "notes": "Second variant: script FIN-001-malformed-twice.json fails both attempts; expect finalStatus FAILED.",
+    "attachments": [
+      "fixtures/attachments/INV-88412.txt"
+    ]
+  },
+  "faults": {},
+  "modelScript": "fixtures/model_scripts/FIN-001-malformed.json",
+  "approvals": [],
+  "expect": {
+    "outcome": "APPROVE_FOR_POSTING",
+    "statusBeforeApproval": "AWAITING_APPROVAL",
+    "auditEvents": [
+      "MODEL_OUTPUT_INVALID",
+      "MODEL_OUTPUT_REPAIRED"
+    ],
+    "repairs": 1,
+    "financeActions": 0
+  },
+  "basedOn": "FIN-001"
+}

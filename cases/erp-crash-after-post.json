@@ -1,0 +1,47 @@
+{
+  "id": "erp-crash-after-post",
+  "description": "The simulated ERP records the posting, then the process dies before marking the outbox SENT; resume retries with the same key and gets the original receipt.",
+  "priority": "required",
+  "request": {
+    "caseId": "erp-crash-after-post",
+    "invoiceRef": "INV-88412",
+    "vendor": "V-1007",
+    "amount": "17600.00",
+    "currency": "AUD",
+    "notes": null,
+    "attachments": [
+      "fixtures/attachments/INV-88412.txt"
+    ]
+  },
+  "faults": {
+    "crashAfterErpPost": true
+  },
+  "modelScript": "default",
+  "approvals": [
+    {
+      "approver": "u-204",
+      "decision": "APPROVE",
+      "deliveryId": "dlv-040",
+      "expectResult": "ok"
+    }
+  ],
+  "expect": {
+    "afterCrash": {
+      "status": "SUBMITTING",
+      "outboxStatus": "SENDING",
+      "erpPostings": 1
+    },
+    "afterResume": {
+      "status": "COMPLETED",
+      "outboxStatus": "SENT",
+      "postingRefEqualsFirst": true
+    },
+    "erpLookupCalls": 1,
+    "submitAttempts": 1,
+    "financeActions": 1,
+    "auditEvents": [
+      "OUTBOX_RECONCILED"
+    ]
+  },
+  "basedOn": "FIN-001"
+}

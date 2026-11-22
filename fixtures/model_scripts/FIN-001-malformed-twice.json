@@ -1,0 +1,18 @@
+{
+  "_note": "Both the extract call and its repair return invalid output; the run must end FAILED with a reason.",
+  "calls": [
+    {
+      "purpose": "extract",
+      "rawResponse": "not json at all"
+    },
+    {
+      "purpose": "extract-repair",
+      "rawResponse": "{\"invoiceNumber\": 42}"
+    }
+  ],
+  "expect": {
+    "finalStatus": "FAILED",
+    "reason": "MODEL_OUTPUT_INVALID_AFTER_REPAIR",
+    "financeActions": 0
+  }
+}

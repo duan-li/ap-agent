@@ -1,0 +1,33 @@
+{
+  "id": "vendor-blocked",
+  "description": "Vendor status is BLOCKED; hold regardless of matching evidence.",
+  "priority": "optional",
+  "request": {
+    "caseId": "vendor-blocked",
+    "invoiceRef": "EW-5521",
+    "vendor": "V-1050",
+    "amount": "1100.00",
+    "currency": "AUD",
+    "notes": null,
+    "attachments": [
+      "fixtures/attachments/EW-5521.txt"
+    ]
+  },
+  "faults": {},
+  "modelScript": "default",
+  "approvals": [],
+  "expect": {
+    "outcome": "HOLD_FOR_INFORMATION",
+    "exceptions": [
+      "VENDOR_BLOCK"
+    ],
+    "mustCite": [
+      {
+        "doc": "FIN-POL-004",
+        "section": "§4",
+        "finding": "VENDOR_STATUS_NOT_ACTIVE"
+      }
+    ],
+    "financeActions": 0
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "id": "FIN-001-crash",
+  "description": "Process dies after the reconcile step; resume continues without re-calling tools.",
+  "priority": "required",
+  "request": {
+    "caseId": "FIN-001-crash",
+    "invoiceRef": "INV-88412",
+    "vendor": "V-1007",
+    "amount": "17600.00",
+    "currency": "AUD",
+    "notes": null,
+    "attachments": [
+      "fixtures/attachments/INV-88412.txt"
+    ]
+  },
+  "faults": {
+    "crashAfterStep": "reconcile"
+  },
+  "modelScript": "default",
+  "approvals": [],
+  "expect": {
+    "statusAfterCrash": "RUNNING",
+    "afterResume": {
+      "status": "AWAITING_APPROVAL",
+      "outcome": "APPROVE_FOR_POSTING"
+    },
+    "toolCallsDuringResume": {
+      "get_purchase_order": 0,
+      "get_vendor_record": 0,
+      "check_invoice_history": 0,
+      "retrieve_finance_documents": 0
+    },
+    "resultEqualsUncrashedRun": true
+  },
+  "basedOn": "FIN-001"
+}

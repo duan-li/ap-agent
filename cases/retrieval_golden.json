@@ -1,0 +1,71 @@
+{
+  "_note": "Retrieval-only checks; no model needed. 'top' must appear in the first 3 results; 'mustNotAuthorise' may appear only flagged as superseded or untrusted.",
+  "queries": [
+    {
+      "id": "R1",
+      "query": "Department Director approval limit",
+      "top": [
+        "FIN-POL-003 §2"
+      ],
+      "mustNotAuthorise": [
+        "FIN-POL-003-OLD"
+      ]
+    },
+    {
+      "id": "R2",
+      "query": "freight variance tolerance AUD 75",
+      "top": [
+        "FIN-POL-002 §2"
+      ],
+      "mustNotAuthorise": [
+        "ADV-002"
+      ]
+    },
+    {
+      "id": "R3",
+      "query": "bank account change verification",
+      "top": [
+        "FIN-POL-004 §2"
+      ],
+      "mustNotAuthorise": [
+        "ADV-001"
+      ]
+    },
+    {
+      "id": "R4",
+      "query": "duplicate invoice exact match",
+      "top": [
+        "FIN-POL-005 §1"
+      ],
+      "mustNotAuthorise": []
+    },
+    {
+      "id": "R5",
+      "query": "invoice without goods receipt",
+      "top": [
+        "FIN-POL-002 §4"
+      ],
+      "mustNotAuthorise": []
+    },
+    {
+      "id": "R6",
+      "query": "new vendor two approvals financial control",
+      "top": [
+        "FIN-POL-003 §3"
+      ],
+      "mustNotAuthorise": [
+        "FIN-POL-003-OLD"
+      ]
+    },
+    {
+      "id": "R7",
+      "query": "dinner allowance",
+      "top": [],
+      "expectNoAuthority": true,
+      "mustNotAuthorise": [
+        "ADV-002"
+      ],
+      "note": "Below relevance threshold or untrusted: no AP policy should be returned as authority."
+    }
+  ]
+}

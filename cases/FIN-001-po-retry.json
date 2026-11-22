@@ -1,0 +1,31 @@
+{
+  "id": "FIN-001-po-retry",
+  "description": "PO tool times out twice then succeeds; retry recovers and the run reaches approval.",
+  "priority": "required",
+  "request": {
+    "caseId": "FIN-001-po-retry",
+    "invoiceRef": "INV-88412",
+    "vendor": "V-1007",
+    "amount": "17600.00",
+    "currency": "AUD",
+    "notes": null,
+    "attachments": [
+      "fixtures/attachments/INV-88412.txt"
+    ]
+  },
+  "faults": {
+    "get_purchase_order": {
+      "timeoutTimes": 2
+    }
+  },
+  "modelScript": "default",
+  "approvals": [],
+  "expect": {
+    "toolCalls": {
+      "get_purchase_order": 3
+    },
+    "statusBeforeApproval": "AWAITING_APPROVAL",
+    "outcome": "APPROVE_FOR_POSTING"
+  },
+  "basedOn": "FIN-001"
+}

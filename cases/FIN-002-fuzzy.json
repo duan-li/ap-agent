@@ -1,0 +1,37 @@
+{
+  "id": "FIN-002-fuzzy",
+  "description": "Different invoice number, same PO, 5 days later, amount 0.3% higher; probable duplicate, hold.",
+  "priority": "optional",
+  "request": {
+    "caseId": "FIN-002-fuzzy",
+    "invoiceRef": "INV-77131",
+    "vendor": "V-1012",
+    "amount": "4964.85",
+    "currency": "AUD",
+    "notes": null,
+    "attachments": [
+      "fixtures/attachments/INV-77131.txt"
+    ]
+  },
+  "faults": {},
+  "modelScript": "default",
+  "approvals": [],
+  "expect": {
+    "outcome": "HOLD_FOR_INFORMATION",
+    "exceptions": [
+      "DUPLICATE_RISK"
+    ],
+    "mustCiteRecords": [
+      "HIST-3301"
+    ],
+    "mustCite": [
+      {
+        "doc": "FIN-POL-005",
+        "section": "§2",
+        "finding": "PROBABLE_FUZZY_DUPLICATE"
+      }
+    ],
+    "financeActions": 0
+  },
+  "basedOn": "FIN-002"
+}

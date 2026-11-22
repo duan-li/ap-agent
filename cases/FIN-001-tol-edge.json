@@ -1,0 +1,40 @@
+{
+  "id": "FIN-001-tol-edge",
+  "description": "Line variance exactly at the AUD 50.00 limit; still within tolerance.",
+  "priority": "optional",
+  "request": {
+    "caseId": "FIN-001-tol-edge",
+    "invoiceRef": "INV-88412",
+    "vendor": "V-1007",
+    "amount": "17655.00",
+    "currency": "AUD",
+    "notes": null,
+    "attachments": [
+      "fixtures/attachments/INV-88412-tol-edge.txt"
+    ]
+  },
+  "faults": {},
+  "modelScript": "default",
+  "approvals": [
+    {
+      "approver": "u-204",
+      "decision": "APPROVE",
+      "deliveryId": "dlv-003",
+      "expectResult": "ok"
+    }
+  ],
+  "expect": {
+    "outcome": "APPROVE_FOR_POSTING",
+    "calculations": [
+      {
+        "check": "LINE_PRICE_TOLERANCE",
+        "line": 1,
+        "variance": "50.00",
+        "threshold": "50.00",
+        "withinTolerance": true
+      }
+    ],
+    "financeActions": 1
+  },
+  "basedOn": "FIN-001"
+}

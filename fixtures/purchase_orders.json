@@ -1,0 +1,151 @@
+{
+  "_note": "Synthetic test data for the AP agent take-home. No real people, companies or accounts.",
+  "records": [
+    {
+      "poNumber": "PO-55210",
+      "vendorId": "V-1007",
+      "description": "Quarterly hardware order",
+      "currency": "AUD",
+      "approvalStatus": "APPROVED",
+      "approvedBy": "u-204",
+      "approvedAt": "2026-10-28",
+      "freightPermitted": false,
+      "lines": [
+        {
+          "line": 1,
+          "description": "Laptop 14in",
+          "type": "GOODS",
+          "quantity": 10,
+          "unitPrice": "1200.00",
+          "lineValue": "12000.00"
+        },
+        {
+          "line": 2,
+          "description": "Docking station",
+          "type": "GOODS",
+          "quantity": 10,
+          "unitPrice": "400.00",
+          "lineValue": "4000.00"
+        }
+      ],
+      "subtotal": "16000.00",
+      "taxRate": "0.10",
+      "toleranceRef": "FIN-POL-002 v2.4 §2"
+    },
+    {
+      "poNumber": "PO-55388",
+      "vendorId": "V-1007",
+      "description": "Office furniture",
+      "currency": "AUD",
+      "approvalStatus": "APPROVED",
+      "approvedBy": "u-204",
+      "approvedAt": "2026-10-28",
+      "freightPermitted": false,
+      "lines": [
+        {
+          "line": 1,
+          "description": "Office chair",
+          "type": "GOODS",
+          "quantity": 20,
+          "unitPrice": "350.00",
+          "lineValue": "7000.00"
+        }
+      ],
+      "subtotal": "7000.00",
+      "taxRate": "0.10",
+      "toleranceRef": "FIN-POL-002 v2.4 §2"
+    },
+    {
+      "poNumber": "PO-58020",
+      "vendorId": "V-1012",
+      "description": "Office supplies Q3",
+      "currency": "AUD",
+      "approvalStatus": "APPROVED",
+      "approvedBy": "u-201",
+      "approvedAt": "2026-10-28",
+      "freightPermitted": false,
+      "lines": [
+        {
+          "line": 1,
+          "description": "Office supplies bundle Q3",
+          "type": "GOODS",
+          "quantity": 1,
+          "unitPrice": "4500.00",
+          "lineValue": "4500.00"
+        }
+      ],
+      "subtotal": "4500.00",
+      "taxRate": "0.10",
+      "toleranceRef": "FIN-POL-002 v2.4 §2"
+    },
+    {
+      "poNumber": "PO-60114",
+      "vendorId": "V-1031",
+      "description": "Warehouse transfer services",
+      "currency": "AUD",
+      "approvalStatus": "APPROVED",
+      "approvedBy": "u-204",
+      "approvedAt": "2026-10-28",
+      "freightPermitted": false,
+      "lines": [
+        {
+          "line": 1,
+          "description": "Warehouse transfer services October",
+          "type": "SERVICES",
+          "quantity": 1,
+          "unitPrice": "7500.00",
+          "lineValue": "7500.00"
+        }
+      ],
+      "subtotal": "7500.00",
+      "taxRate": "0.10",
+      "toleranceRef": "FIN-POL-002 v2.4 §2"
+    },
+    {
+      "poNumber": "PO-61002",
+      "vendorId": "V-1040",
+      "description": "Facilities consulting",
+      "currency": "AUD",
+      "approvalStatus": "APPROVED",
+      "approvedBy": "u-201",
+      "approvedAt": "2026-10-28",
+      "freightPermitted": false,
+      "lines": [
+        {
+          "line": 1,
+          "description": "Facilities consulting November",
+          "type": "SERVICES",
+          "quantity": 1,
+          "unitPrice": "9000.00",
+          "lineValue": "9000.00"
+        }
+      ],
+      "subtotal": "9000.00",
+      "taxRate": "0.10",
+      "toleranceRef": "FIN-POL-002 v2.4 §2"
+    },
+    {
+      "poNumber": "PO-61500",
+      "vendorId": "V-1050",
+      "description": "Packaging",
+      "currency": "AUD",
+      "approvalStatus": "APPROVED",
+      "approvedBy": "u-201",
+      "approvedAt": "2026-10-28",
+      "freightPermitted": false,
+      "lines": [
+        {
+          "line": 1,
+          "description": "Shipping cartons",
+          "type": "GOODS",
+          "quantity": 5,
+          "unitPrice": "200.00",
+          "lineValue": "1000.00"
+        }
+      ],
+      "subtotal": "1000.00",
+      "taxRate": "0.10",
+      "toleranceRef": "FIN-POL-002 v2.4 §2"
+    }
+  ]
+}

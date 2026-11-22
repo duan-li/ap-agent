@@ -1,0 +1,43 @@
+{
+  "id": "FIN-001-within-tol",
+  "description": "Unit price AUD 3.00 above PO: line variance 30.00 within the AUD 50.00 limit; approved.",
+  "priority": "optional",
+  "request": {
+    "caseId": "FIN-001-within-tol",
+    "invoiceRef": "INV-88412",
+    "vendor": "V-1007",
+    "amount": "17633.00",
+    "currency": "AUD",
+    "notes": null,
+    "attachments": [
+      "fixtures/attachments/INV-88412-within-tol.txt"
+    ]
+  },
+  "faults": {},
+  "modelScript": "default",
+  "approvals": [
+    {
+      "approver": "u-204",
+      "decision": "APPROVE",
+      "deliveryId": "dlv-002",
+      "expectResult": "ok"
+    }
+  ],
+  "expect": {
+    "outcome": "APPROVE_FOR_POSTING",
+    "requiredApprovers": [
+      "DEPARTMENT_DIRECTOR"
+    ],
+    "calculations": [
+      {
+        "check": "LINE_PRICE_TOLERANCE",
+        "line": 1,
+        "variance": "30.00",
+        "threshold": "50.00",
+        "withinTolerance": true
+      }
+    ],
+    "financeActions": 1
+  },
+  "basedOn": "FIN-001"
+}
