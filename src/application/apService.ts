@@ -1,64 +1,77 @@
-import type { z } from 'zod';
-import type { OutboxStatus, request, runResult } from '../domain/types.ts';
+import type { Flow } from '../orchestrator/flow.ts';
+import { ApplicationError, toAppError, type AppError } from './errors.ts';
+import { authorised } from '../orchestrator/approvals.ts';
+import type { backends } from '../adapters/toolBackends.ts';
+import { z } from 'zod';
+import {
+  type RequestMeta,
+  type ApprovalCommand,
+  type RunView,
+  type Review,
+  request,
+  approvalCommand,
+  requestMetadata,
+} from '../domain/types.ts';
 
 export type StartRunCommand = z.input<typeof request>;
-
-export interface RequestMeta {
-  deliveryId: string;
-  correlationId: string;
-  actor: { id: string; via: 'cli-flag' | 'signed-webhook' | 'service-identity' };
-  source: 'cli' | 'http' | 'queue';
-  deadline: number;
-  signal: AbortSignal;
-}
-
-export type ApprovalCommand = { runId: string; approvalId: string } & (
-  | { decision: 'APPROVE' }
-  | { decision: 'REJECT'; reason: string }
-);
-
-type RunResult = z.output<typeof runResult>;
-
-export interface RunView {
-  runId: string;
-  caseId: string;
-  status: RunResult['status'];
-  currentStep: string;
-  budget: { steps: string; toolCalls: string; modelCalls: string };
-  outbox: { status: OutboxStatus; postingRef: string | null } | null;
-  result: RunResult | null;
-  events: Array<{
-    ts: string;
-    type: string;
-    runId: string;
-    correlationId: string;
-    [field: string]: z.infer<ReturnType<typeof z.json>>;
-  }>;
-}
 
 export interface ApprovalResponse {
   runId: string;
   approvalId: string;
   decision: ApprovalCommand['decision'];
-  status: RunResult['status'];
+  status: Review['status'];
 }
 
-export type AppError =
-  | { type: 'Validation'; issues: string[] }
-  | { type: 'Unauthorized' }
-  | { type: 'Conflict'; currentState: string }
-  | { type: 'NotFound' }
-  | { type: 'Transient'; retryAfterMs?: number }
-  | { type: 'DeadlineExceeded'; runId?: string };
+export type { RequestMeta, ApprovalCommand, RunView } from '../domain/types.ts';
+export type { AppError } from './errors.ts';
 
 export type Result<T = RunView | ApprovalResponse> =
-  | { kind: 'ok'; value: T }
-  | { kind: 'duplicate'; value: T }
-  | { kind: 'error'; error: AppError };
+  { kind: 'ok'; value: T } | { kind: 'duplicate'; value: T } | { kind: 'error'; error: AppError };
 
 export interface ApService {
   startRun(command: StartRunCommand, meta: RequestMeta): Promise<Result<RunView>>;
   getRun(runId: string, meta: RequestMeta): Promise<Result<RunView>>;
   resolveApproval(command: ApprovalCommand, meta: RequestMeta): Promise<Result<ApprovalResponse>>;
   resume(runId: string, meta: RequestMeta): Promise<Result<RunView>>;
+}
+
+export function service(flow: Flow, data: ReturnType<typeof backends>): ApService {
+  async function execute<T>(meta: RequestMeta, work: () => T | Promise<T>): Promise<Result<T>> {
+    try {
+      requestMetadata.parse(meta);
+      if (meta.signal.aborted || meta.deadline <= flow.store.clock.now().getTime())
+        throw new ApplicationError({ type: 'DeadlineExceeded' });
+      return { kind: 'ok', value: await work() };
+    } catch (e) {
+      return { kind: 'error', error: toAppError(e) };
+    }
+  }
+  return {
+    startRun: (cmd: StartRunCommand, meta) =>
+      execute(meta, () => {
+        const r = request.parse(cmd);
+        if (
+          flow.store.redact(r.caseId) !== r.caseId ||
+          flow.store.redact(r.invoiceRef) !== r.invoiceRef
+        )
+          throw new ApplicationError({ type: 'Validation', issues: ['invoice identifiers'] });
+        return flow.start(r, meta);
+      }),
+    getRun: (id, meta) => execute(meta, () => flow.get(z.string().min(1).parse(id))),
+    resume: (id, meta) => execute(meta, () => flow.resume(z.string().min(1).parse(id), meta)),
+    resolveApproval: (cmd: ApprovalCommand, meta) =>
+      execute(meta, () =>
+        flow.decide(approvalCommand.parse(cmd), meta, (role, amount, vendorId) =>
+          data.vendors.find((v) => v.vendorId === vendorId)?.createdBy === meta.actor.id
+            ? null
+            : authorised(
+                data.register,
+                meta.actor.id,
+                role,
+                amount,
+                flow.store.clock.now().toISOString().slice(0, 10),
+              ),
+        ),
+      ),
+  };
 }

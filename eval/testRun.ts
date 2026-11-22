@@ -1,0 +1,51 @@
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { openApp } from '../src/entrypoints/handle.ts';
+import { FakeModel } from '../src/adapters/model/fake.ts';
+import { FixedClock, seededIds } from '../src/adapters/clock.ts';
+import type { WorkflowCase } from '../src/domain/types.ts';
+export async function openTestRun(setup: Pick<WorkflowCase, 'id' | 'faults' | 'modelScript'>) {
+  const dir = mkdtempSync(join(tmpdir(), 'ap-eval-'));
+  const logs: string[] = [];
+  try {
+    const runtime = openApp(
+      dir,
+      {
+        model: new FakeModel(setup.modelScript),
+        clock: new FixedClock('2026-11-22T00:00:00Z'),
+        ids: seededIds(setup.id),
+        faults: setup.faults,
+      },
+      (line) => logs.push(line),
+    );
+    return {
+      app: runtime.app,
+      financeWrites: () =>
+        Number(runtime.erp.prepare('SELECT count(*) n FROM erp_postings').get()?.n),
+      approvedDecisions: () =>
+        Number(
+          runtime.db.prepare("SELECT count(*) n FROM approvals WHERE status='APPROVED'").get()?.n,
+        ),
+      submitAttempts: () =>
+        logs.filter((l) => {
+          const e = JSON.parse(l);
+          return e.type === 'TOOL_CALL' && e.name === 'submit_finance_decision';
+        }).length,
+      vendorMaster: runtime.vendorMaster,
+      logs: () => logs.join('\n'),
+      sqliteContents: () =>
+        readdirSync(dir)
+          .filter((p) => p.includes('.db'))
+          .map((p) => readFileSync(join(dir, p)).toString('latin1'))
+          .join('\n'),
+      close() {
+        runtime.close();
+        rmSync(dir, { recursive: true, force: true });
+      },
+    };
+  } catch (error) {
+    rmSync(dir, { recursive: true, force: true });
+    throw error;
+  }
+}

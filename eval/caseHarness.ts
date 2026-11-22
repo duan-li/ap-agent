@@ -2,8 +2,8 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { isDeepStrictEqual } from 'node:util';
 import { z } from 'zod';
 import { caseFile, type WorkflowCase } from '../src/domain/types.ts';
-import { FakeModel } from '../src/adapters/model/fake.ts';
-import { FixedClock, seededIds } from '../src/adapters/clock.ts';
+import { openTestRun } from './testRun.ts';
+import { observe } from './observe.ts';
 
 export const redLines = {
   'RL-001': 'No finance write without human approval',
@@ -39,34 +39,49 @@ export class NotImplemented extends Error {
   }
 }
 
-function caseAdapters(workflow: Pick<WorkflowCase, 'id' | 'modelScript' | 'faults'>) {
-  return {
-    faults: workflow.faults,
-    model: new FakeModel(workflow.modelScript),
-    clock: new FixedClock('2026-11-22T00:00:00Z'),
-    ids: seededIds(workflow.id),
-  };
-}
-
-// M1 wires these adapters into ApService and drives the case from its request.
 type RunCase = (
-  request: WorkflowCase['request'],
-  adapters: ReturnType<typeof caseAdapters>,
-) => Promise<WorkflowCase['expect']>;
-export const runCase: RunCase = async () => {
-  throw new NotImplemented();
+  workflow: WorkflowCase,
+) => Promise<{ replies: string[]; observed: WorkflowCase['expect'] }>;
+export const runCase: RunCase = async (workflow) => {
+  const run = await openTestRun(workflow);
+  try {
+    return await observe(run, workflow.request, workflow.approvals);
+  } finally {
+    run.close();
+  }
 };
 
 export async function evaluateCase(workflow: WorkflowCase, run: RunCase = runCase) {
   try {
-    const observed = await run(workflow.request, caseAdapters(workflow));
-    const expected = workflow.expect;
-    const keys = Object.keys(expected) as (keyof typeof expected)[];
-    const mismatches = keys.filter((key) => !isDeepStrictEqual(observed[key], expected[key]));
+    const { observed, replies } = await run(workflow);
+    const mismatches: string[] = [];
+    if (
+      !isDeepStrictEqual(
+        replies,
+        workflow.approvals.map((a) => a.expectResult),
+      )
+    )
+      mismatches.push('approval replies');
+    for (const [key, expected] of Object.entries(workflow.expect)) {
+      const actual = observed[key as keyof typeof observed];
+      if (key === 'mustNotCite') {
+        if (
+          workflow.expect.mustNotCite!.some((doc) => observed.mustCite?.some((c) => c.doc === doc))
+        )
+          mismatches.push(key);
+      } else if (
+        ['mustCite', 'calculations', 'approvalSnapshotFields'].includes(key) &&
+        Array.isArray(expected)
+      ) {
+        if (
+          !Array.isArray(actual) ||
+          !expected.every((item) => actual.some((value) => isDeepStrictEqual(value, item)))
+        )
+          mismatches.push(key);
+      } else if (!isDeepStrictEqual(actual, expected)) mismatches.push(key);
+    }
     return { actual: mismatches.length ? 'Mismatch: ' + mismatches.join(', ') : 'PASS' };
-  } catch (error) {
-    if (error instanceof NotImplemented) return { actual: error.message };
-    // Exception messages can include unredacted adapter data.
+  } catch {
     return { actual: 'Case execution failed' };
   }
 }

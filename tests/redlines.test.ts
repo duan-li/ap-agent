@@ -1,3 +1,4 @@
+import { openTestRun } from '../eval/testRun.ts';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import type { ApService, RequestMeta, RunView } from '../src/application/apService.ts';
@@ -21,9 +22,7 @@ export interface TestRun {
 export type OpenRun = (
   setup: Pick<WorkflowCase, 'id' | 'faults' | 'modelScript'>,
 ) => Promise<TestRun>;
-const openRun: OpenRun = async () => {
-  throw new NotImplemented();
-};
+const openRun: OpenRun = openTestRun;
 
 function meta(deliveryId: string, actor = 'local-operator'): RequestMeta {
   return {
