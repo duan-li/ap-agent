@@ -85,7 +85,7 @@ export class Flow {
     return this.resume(id, meta);
   }
   async resume(id: string, meta: RequestMeta) {
-    return withLease(this.store, id, meta.deadline, () => this.continueRun(id, meta));
+    return withLease(this.store, id, meta.deadline, () => this.continueRun(id, meta), meta.signal);
   }
   async continueRun(id: string, meta: RequestMeta) {
     const view = this.get(id);

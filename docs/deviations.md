@@ -128,3 +128,31 @@ Status is `Agreed` (decided before implementation), `Implemented` (in the code, 
 - **Why:** The repaired extraction in `FIN-001-malformed.json`, like the FIN-001 reference and `bad-citation` scripts, states quantity and unit price only, and the verified case expects `APPROVE_FOR_POSTING`. The amount paid stays grounded: the stated total must equal the derived subtotal plus tax. A wrong printed line amount with a right total is the only thing no longer caught, and it cannot change the payment.
 - **Impact:** `FIN-001-malformed` reaches `AWAITING_APPROVAL` after one repair and joins `eval/green.json`. FIN-001 with `bad-citation` now proposes `APPROVE_FOR_POSTING`, with the unsupported explanation still discarded and audited, so the M2 test expectation changed. The default fake states every line amount, so other cases are unchanged.
 - **Proof:** `tests/lineAmount.test.ts` (stated, derived, grounding failure kept unknown, missing inputs, inflated total held); the repair test in `tests/failures.test.ts`; case `FIN-001-malformed`.
+
+## D-11 Approval inbox reserves a delivery before its final response
+
+- **Type:** Field representation adjustment
+- **Status:** Implemented in M4
+- **Design reference:** TECH.md, Persistence and migrations, inbox table
+- **What:** Only approval callbacks use the inbox, so the table omits the constant command name. The primary key stores the SHA-256 hash of the caller's delivery ID. A separate request hash binds the actor, run, approval, decision and rejection reason. A reservation starts with a null `response_json` and `applied=0`.
+- **Why and impact:** The approval transaction sets `applied=1`. If the worker dies before a final response is cached, a retry can finish the existing decision. Once populated, `response_json` returns the original response. A changed request under the same delivery ID conflicts. The raw caller-supplied delivery ID stays out of the database.
+- **Proof:** `tests/inbox.test.ts` checks byte-for-byte replay across restart and rejects an edited callback. The ERP crash cases retry the original delivery after recovery.
+
+## D-12 Run ownership and simulated changes survive worker replacement
+
+- **Type:** Field representation adjustment and clarification
+- **Status:** Implemented in M4
+- **Design reference:** TECH.md, Persistence and migrations, runs table
+- **What:** Migration 0003 added `lease_epoch` and `simulation_json` to each run. Every acquisition increments the epoch. The JSON stores the run's stage-specific fault settings, including one-shot crashes and vendor changes. Consuming a crash point updates that row. Runs created before 0003 start with an empty fault object.
+- **Why and impact:** Epoch checks inside SQLite write transactions fence an old worker after takeover. The persisted settings let a fresh CLI invocation exercise the remaining simulated changes. Migration 0003 initially stored a PID in an INTEGER `lease_owner`. Migration 0004 fences outstanding PID leases and changes the column to TEXT for a per-process UUID. Approvals, inbox responses, outbox intents and step outputs survive the upgrade.
+- **Recovery:** PID namespaces can give two workers the same PID. A worker renews its two-second lease every 500 ms, up to the request deadline. A competing approval returns a conflict. A resume with sufficient time can wait for the observed lease to expire and try once more. A live worker's renewal keeps the run busy. A killed worker stops renewing, so a single resume can take over.
+- **Proof:** `tests/lease.test.ts` covers concurrent decisions, expiry, fenced writes, upgrading an unexpired PID lease and recovery after a missed renewal. The M4 acceptance entry in `docs/build-log.md` records the two-container drill.
+
+## D-13 Simulated crashes identify the interrupted run
+
+- **Type:** Field representation adjustment
+- **Status:** Implemented in M4
+- **Design reference:** TECH.md, Entry points contract, Transient error
+- **What:** A simulated crash returns a typed `Transient` error carrying `runId`. The ordinary transient response still permits `retryAfterMs`. Both map to CLI exit code 75.
+- **Why and impact:** An interruption during start can happen before the caller receives a run ID. Returning the ID lets the caller reopen the store and resume the checkpoint. A simulated crash does not produce a final inbox response.
+- **Proof:** `eval/observe.ts` uses the returned ID to reopen and resume the interrupted step and ERP cases.
