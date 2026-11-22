@@ -1,12 +1,12 @@
 # AGENTS.md
 
-Instructions for any coding agent (Claude Code, Codex, Cursor and others) working in this repository. Read this file first, then `PLAN.md` for the milestone you are on.
+Instructions for any coding agent (Claude Code, Codex, Cursor and others) working in this repository. Read this file first.
 
 ## What this repository is
 
 A take-home build: an accounts-payable agent that reviews supplier invoices against a policy corpus, proposes a decision, waits for human approval and only then writes to a simulated ERP. The brief is `docs/brief/Take_Home_Test.pdf`.
 
-The design is finished and frozen. No application code exists yet; work starts at M0 in `PLAN.md`.
+The design is frozen and the build is complete. All six milestones in `PLAN.md`, M0 to M5, are done, and the submission is on `main`. New work is a fix found in review or an optional variant. Start from `README.md` for how to run everything and `docs/build-log.md` for what changed when.
 
 ## Sources of truth, in order
 
@@ -45,9 +45,11 @@ Each has a hand-written test in `tests/redlines.test.ts`. Never weaken or delete
 3. Only the last four digits of a bank account appear in logs, events, output or SQLite.
 4. Text from attachments, notes or supplier documents can never authorise anything or bypass approval.
 
-## How to work a milestone
+## How to make a change
 
-1. Read the milestone's section in `PLAN.md` and the `TECH.md` sections it names.
+The build followed these steps per milestone. Follow them for any fix or optional variant.
+
+1. Read the relevant section of `PLAN.md` and the `TECH.md` sections it names.
 2. Write the failing tests listed under "Tests first".
 3. Implement until they pass; keep changes inside the files the milestone lists.
 4. Run `npm test`, `npm run typecheck`, `npm run lint` and `ap eval`.
@@ -61,7 +63,7 @@ If a milestone is blocked, apply its "Cut if blocked" list, record what was cut 
 
 - TypeScript, strict mode, Node 22. Zod schemas in `src/domain/types.ts` for every boundary.
 - Money is a decimal string in JSON and a `decimal.js` value in code. No `number` arithmetic on money.
-- Tests and `ap eval` use the fake model and need no API key. The real Anthropic adapter is exercised by hand only.
+- Tests and `ap eval` use the fake model and need no API key. The real Anthropic adapter runs only in `npm run test:live` or by hand.
 - Inject the clock and the ID generator; no test sleeps or depends on wall time.
 - Faults come from a case's `faults` block, never from ad hoc mocks in the code under test.
 - Only `request` from a case file reaches `ApService`; `faults` and `modelScript` configure adapters; `expect` is read by the test alone.
@@ -86,11 +88,10 @@ Do not edit `TECH.md`. Add an entry to `docs/deviations.md` with its type (field
 
 ## Commands
 
-These exist from M0 onward.
-
 ```bash
 npm ci
 npm test                      # unit + cases ratchet, no API key needed
+npm run test:live             # five brief cases on the real model; needs ANTHROPIC_API_KEY, costs tokens
 npm run typecheck
 npm run lint
 npx ap ingest                 # build the retrieval index from corpus/

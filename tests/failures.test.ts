@@ -323,8 +323,16 @@ it('discards a model reply that arrives after the request deadline', async () =>
     if (reply.kind !== 'error' || reply.error.type !== 'DeadlineExceeded') return;
     const view = await runtime.app.getRun(reply.error.runId!, meta('read', start + 60_000));
     expect(view).toMatchObject({ kind: 'ok', value: { status: 'RUNNING', result: null } });
-    if (view.kind === 'ok')
+    if (view.kind === 'ok') {
       expect(view.value.events.some((e) => e.type === 'STEP_COMPLETED')).toBe(false);
+      expect(view.value.events.filter((e) => e.type === 'MODEL_CALL')).toEqual([
+        expect.objectContaining({
+          purpose: 'extract',
+          outcome: 'DEADLINE_EXCEEDED',
+          durationMs: 2000,
+        }),
+      ]);
+    }
   } finally {
     runtime.close();
     rmSync(dir, { recursive: true, force: true });

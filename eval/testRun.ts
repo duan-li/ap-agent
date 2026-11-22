@@ -6,7 +6,12 @@ import { openApp } from '../src/entrypoints/handle.ts';
 import { FakeModel } from '../src/adapters/model/fake.ts';
 import { FixedClock, seededIds } from '../src/adapters/clock.ts';
 import type { WorkflowCase } from '../src/domain/types.ts';
-export async function openTestRun(setup: Pick<WorkflowCase, 'id' | 'faults' | 'modelScript'>) {
+import type { ModelProvider } from '../src/adapters/model/provider.ts';
+// The live suite passes the real provider; every other run uses the fake.
+export async function openTestRun(
+  setup: Pick<WorkflowCase, 'id' | 'faults' | 'modelScript'>,
+  model?: ModelProvider,
+) {
   const dir = mkdtempSync(join(tmpdir(), 'ap-eval-'));
   const logs: string[] = [];
   try {
@@ -16,7 +21,7 @@ export async function openTestRun(setup: Pick<WorkflowCase, 'id' | 'faults' | 'm
       openApp(
         dir,
         {
-          model: new FakeModel(setup.modelScript),
+          model: model ?? new FakeModel(setup.modelScript),
           clock,
           ids,
           faults,

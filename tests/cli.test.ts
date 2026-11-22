@@ -1,6 +1,7 @@
 import { it, expect } from 'vitest';
 import { decode } from '../src/entrypoints/entryPoint.ts';
 import { exitCode } from '../src/entrypoints/json.ts';
+import { callbackDeliveryId } from '../src/entrypoints/cli.ts';
 it.each([
   'get r',
   'resume r',
@@ -11,6 +12,17 @@ it.each([
   'eval',
 ])('decodes %s', (args) => {
   expect(decode(args.split(' ')).command).toBe(args.split(' ')[0]);
+});
+it('derives one delivery ID per callback content when none is given', () => {
+  const id = (args: string) => callbackDeliveryId(decode(args.split(' ')));
+  const approve = 'approve r --approval a --approver u-204';
+  expect(id(approve)).toBe(id(approve));
+  expect(id(approve)).not.toBe(id('approve r --approval a --approver u-201'));
+  expect(id(approve)).not.toBe(id('reject r --approval a --approver u-204 --reason x'));
+  expect(id('reject r --approval a --approver u-204 --reason x')).not.toBe(
+    id('reject r --approval a --approver u-204 --reason y'),
+  );
+  expect(id('get r')).toBeUndefined();
 });
 it('maps typed errors', () => {
   expect(
@@ -136,6 +148,12 @@ it('persists the FIN-001 review, audit trail and approval across CLI invocations
           outcome: 'OK',
           durationMs: expect.any(Number),
         });
+      if (event.type === 'MODEL_CALL')
+        expect(event).toMatchObject({
+          purpose: expect.any(String),
+          outcome: 'OK',
+          durationMs: expect.any(Number),
+        });
       if (event.type === 'RETRIEVAL')
         expect(event).toMatchObject({
           query: expect.any(String),
@@ -149,12 +167,23 @@ it('persists the FIN-001 review, audit trail and approval across CLI invocations
     const approve = ['approve', id, '--approval', next.approvalId, '--approver'];
     expect(cli([...approve, 'u-201'], 3).type).toBe('Unauthorized');
     expect(cli(['resume', id]).status).toBe('AWAITING_APPROVAL');
-    expect(cli([...approve, 'u-204']).status).toBe('COMPLETED');
+    const first = cli([...approve, 'u-204']);
+    expect(first.status).toBe('COMPLETED');
+    // The same callback repeated without --delivery-id replays the first response.
+    expect(cli([...approve, 'u-204'])).toEqual(first);
+    expect(
+      cli(
+        ['reject', id, '--approval', next.approvalId, '--approver', 'u-204', '--reason', 'late'],
+        4,
+      ).type,
+    ).toBe('Conflict');
     const final: RunView = cli(['get', id]);
     expect(final.outbox).toMatchObject({
       status: 'SENT',
       postingRef: final.result!.actionsTaken[0]!.postingRef,
     });
+    expect(final.result!.actionsTaken).toHaveLength(1);
+    expect(final.events.filter((e) => e.type === 'APPROVAL_DUPLICATE_IGNORED')).toHaveLength(1);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

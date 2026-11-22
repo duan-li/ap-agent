@@ -81,7 +81,7 @@ export function reconcile(r: WorkflowCase['request'], e: Evidence) {
       match.passed && po?.vendorId === r.vendor && po.currency === r.currency && goodIdentity,
     TAX_AND_TOTAL: tax.passed,
     VENDOR_ACTIVE: vendorActive(vendor),
-    DUPLICATE_CHECK: !history.exact.length,
+    DUPLICATE_CHECK: !history.exact.length && !history.fuzzy.length,
     APPROVAL_REQUIREMENT: goodIdentity,
   };
   const evidenceIds = {
@@ -144,6 +144,26 @@ export function reconcile(r: WorkflowCase['request'], e: Evidence) {
     });
     if (goodIdentity && vendorActive(vendor) && !unknowns.length)
       outcome = tighten(outcome, 'REJECT_DUPLICATE');
+  }
+  // FIN-POL-005 §2: a probable fuzzy match holds the invoice and cites both
+  // records. An exact match already decides the case, so it takes precedence.
+  const probable = history.exact.length ? [] : history.fuzzy;
+  if (probable.length) {
+    const ids = probable.map((h) => h.recordId);
+    const basis = probable.map((h) => h.recordId + ' (' + h.status + '): ' + h.matchBasis);
+    const current = invoice.fields.invoiceNumber ? ['invoiceNumber'] : [];
+    // The match basis is stated in the exception and the matched record facts.
+    finding('PROBABLE_FUZZY_DUPLICATE', 'FIN-POL-005 v2.8 §2', [...ids, ...current]);
+    exceptions.push({
+      code: 'DUPLICATE_RISK',
+      failedRule: 'PROBABLE_FUZZY_DUPLICATE',
+      expected: 'No probable duplicate of a recorded invoice',
+      observed: r.invoiceRef + ' resembles ' + basis.join('; '),
+      owner: 'Accounts Payable',
+      nextReviewDate,
+      sources: ids,
+    });
+    outcome = tighten(outcome, 'HOLD_FOR_INFORMATION');
   }
   const { claims, indicators } = bankDetails(e.signals, vendor.bankLast4);
   if (claims.length) {

@@ -18,6 +18,36 @@ import {
 } from '../domain/types.ts';
 import { retrieve } from './retrieve.ts';
 
+type HistoryRecord = ReturnType<typeof backends>['history'][number];
+
+// FIN-POL-005 §1 lists the fuzzy signals but not when they make a probable
+// duplicate. A record matches when vendor and currency agree, the gross amount
+// differs by less than 0.5%, the invoice dates are at most 14 days apart, and
+// the purchase order or the punctuation-stripped invoice number is the same
+// (D-16). The fixture attachment hashes are placeholders, so they are unused.
+function fuzzyBasis(h: HistoryRecord, q: HistoryQuery) {
+  if (h.vendorId !== q.vendorId || h.currency !== q.currency) return undefined;
+  const amount = new Decimal(q.grossAmount),
+    prior = new Decimal(h.grossAmount);
+  if (prior.lte(0)) return undefined;
+  const variance = amount.minus(prior).abs().div(prior);
+  const days = Math.abs(Date.parse(q.invoiceDate) - Date.parse(h.invoiceDate)) / 86_400_000;
+  const sameNumber = h.normalisedNumber === normaliseInvoice(q.invoiceNumber);
+  const samePo = q.poNumber !== undefined && q.poNumber === h.poNumber;
+  if (!variance.lt('0.005') || !(days <= 14) || !(sameNumber || samePo)) return undefined;
+  return [
+    sameNumber ? 'same invoice number after removing punctuation' : '',
+    samePo ? 'same purchase order' : '',
+    'invoice date ' + days + (days === 1 ? ' day' : ' days') + ' apart',
+    'gross amount ' +
+      variance.times(100).toFixed(2) +
+      '% ' +
+      (amount.gte(prior) ? 'higher' : 'lower'),
+  ]
+    .filter(Boolean)
+    .join('; ');
+}
+
 // One attempt per call. Retries, backoff and the deadline live in callTool.
 export function readTools(
   data: ReturnType<typeof backends>,
@@ -67,13 +97,19 @@ export function readTools(
           h.normalisedNumber === normaliseInvoice(q.invoiceNumber) &&
           new Decimal(h.grossAmount).eq(q.grossAmount),
       );
+      const fuzzy = data.history
+        .filter((h) => !exact.includes(h))
+        .flatMap((h) => {
+          const matchBasis = fuzzyBasis(h, q);
+          return matchBasis ? [{ recordId: h.historyId, status: h.status, matchBasis }] : [];
+        });
       return s.check_invoice_history.output.parse({
         exact: exact.map((h) => ({
           recordId: h.historyId,
           status: h.status,
           matchBasis: 'vendor, invoice and gross amount',
         })),
-        fuzzy: [],
+        fuzzy,
       });
     },
   };

@@ -4,6 +4,7 @@ const config = z
   .object({
     MODEL_PROVIDER: z.enum(['fake', 'anthropic']).default('fake'),
     ANTHROPIC_API_KEY: z.string().trim().min(1).optional(),
+    ANTHROPIC_MODEL: z.string().trim().min(1).default('claude-haiku-5-5'),
     DATA_DIR: z.string().trim().min(1).default('data'),
   })
   .refine(

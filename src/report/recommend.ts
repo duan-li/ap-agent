@@ -74,6 +74,15 @@ export function recommend(
       r.amount,
   );
   for (const h of history.exact) record(h.recordId, 'matchedHistoryRecord', h.status, h.recordId);
+  // A probable match is evidence for the hold, not a confirmed duplicate.
+  if (!history.exact.length)
+    for (const h of history.fuzzy)
+      record(
+        h.recordId,
+        'matchedHistoryRecord',
+        h.status + ', probable match: ' + h.matchBasis,
+        h.recordId,
+      );
   const poNumber = invoice.fields.poNumber?.value;
   if (e.poLookup && e.poLookup.status !== 'FOUND' && poNumber)
     record(
@@ -107,7 +116,13 @@ export function recommend(
           '; AP then re-submits the invoice as a new run'
         : decision.unknowns.includes('invoiceLines')
           ? 'Request invoice line details'
-          : 'Review invoice evidence';
+          : first?.failedRule === 'PROBABLE_FUZZY_DUPLICATE'
+            ? 'Confirm with the vendor whether ' +
+              r.invoiceRef +
+              ' duplicates ' +
+              first.sources.join(', ') +
+              ' before it is processed'
+            : 'Review invoice evidence';
   return runResult.parse({
     runId,
     caseId: r.caseId,

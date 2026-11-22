@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { caseFile, type WorkflowCase } from '../src/domain/types.ts';
 import { openTestRun } from './testRun.ts';
 import { observe, meta as callbackMeta } from './observe.ts';
+import type { ModelProvider } from '../src/adapters/model/provider.ts';
 
 export const redLines = {
   'RL-001': 'No finance write without human approval',
@@ -54,8 +55,12 @@ type RunCase = (workflow: WorkflowCase) => Promise<{
   observed: WorkflowCase['expect'];
 }>;
 export type Metrics = ReturnType<Awaited<ReturnType<typeof openTestRun>>['metrics']>;
-export const runCase = async (workflow: WorkflowCase, record?: (metrics: Metrics) => void) => {
-  const run = await openTestRun(workflow);
+export const runCase = async (
+  workflow: WorkflowCase,
+  record?: (metrics: Metrics) => void,
+  model?: ModelProvider,
+) => {
+  const run = await openTestRun(workflow, model);
   try {
     const result = await observe(run, workflow.request, workflow.approvals, workflow);
     const [a, b] = workflow.approvals;
@@ -67,7 +72,7 @@ export const runCase = async (workflow: WorkflowCase, record?: (metrics: Metrics
       a.decision === 'APPROVE' &&
       b.decision === 'APPROVE'
     ) {
-      const other = await openTestRun(workflow);
+      const other = await openTestRun(workflow, model);
       try {
         const start = await other.app.startRun(workflow.request, callbackMeta('start'));
         if (start.kind !== 'ok') throw new Error('Start failed');

@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node --import tsx
 import { evaluate } from '../../eval/runEval.ts';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import {
   realpathSync,
@@ -60,7 +60,7 @@ export class CliEntryPoint implements EntryPoint<string[], CliOut> {
     const meta = {
       ...this.context.meta,
       actor,
-      deliveryId: command.deliveryId ?? this.context.meta.deliveryId,
+      deliveryId: command.deliveryId ?? callbackDeliveryId(command) ?? this.context.meta.deliveryId,
     };
     return envelope(command, meta, this.context.request);
   }
@@ -69,6 +69,15 @@ export class CliEntryPoint implements EntryPoint<string[], CliOut> {
     const { data, code } = encodeResult(result);
     return { stdout: this.context.redact(JSON.stringify(data)), exitCode: code };
   }
+}
+
+// Without --delivery-id, an approval callback is identified by its own content.
+// Repeating the same decision by the same approver is then a redelivery and
+// gets the stored first response; any change in content is a new callback.
+export function callbackDeliveryId(command: ReturnType<typeof parseCommand>) {
+  if (command.command !== 'approve' && command.command !== 'reject') return undefined;
+  const content = [command.command, command.id, command.approval, command.actor, command.reason];
+  return 'cli-' + createHash('sha256').update(JSON.stringify(content)).digest('hex');
 }
 
 async function main(argv: string[]) {
@@ -97,7 +106,7 @@ async function main(argv: string[]) {
       : undefined;
   const model =
     cfg.MODEL_PROVIDER === 'anthropic'
-      ? new AnthropicModel(cfg.ANTHROPIC_API_KEY!)
+      ? new AnthropicModel({ apiKey: cfg.ANTHROPIC_API_KEY!, model: cfg.ANTHROPIC_MODEL })
       : new FakeModel(workflow?.modelScript);
   const runtime = openApp(
     cfg.DATA_DIR,

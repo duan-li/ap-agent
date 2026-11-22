@@ -140,9 +140,10 @@ export class Flow {
       this.store.fail(id, meta, error);
     }
   }
-  // Each model call is charged to the run budget and audited before it starts.
-  // It is aborted at the request deadline, and a reply that arrives after the
-  // deadline on the injected clock is discarded.
+  // Each model call is charged to the run budget before it starts and audited
+  // when it ends, with its outcome and duration on the injected clock. It is
+  // aborted at the request deadline, and a reply that arrives after the
+  // deadline is discarded.
   private modelFor(id: string, meta: RequestMeta): ModelProvider {
     const { store } = this;
     const limits = { clock: store.clock, deadline: meta.deadline, signal: meta.signal };
@@ -150,17 +151,30 @@ export class Flow {
       call: async (req) => {
         checkDeadline(limits);
         store.spend(id, 'model_calls');
-        store.event(id, meta, 'MODEL_CALL', { purpose: req.purpose });
-        const remaining = meta.deadline - store.clock.now().getTime();
+        const started = store.clock.now().getTime();
+        const audit = (outcome: 'OK' | 'ERROR' | 'DEADLINE_EXCEEDED') =>
+          store.event(id, meta, 'MODEL_CALL', {
+            purpose: req.purpose,
+            outcome,
+            durationMs: store.clock.now().getTime() - started,
+          });
+        const remaining = meta.deadline - started;
         const signal = AbortSignal.any([meta.signal, AbortSignal.timeout(remaining)]);
         let reply: string;
         try {
           reply = await this.model.call(req, signal);
         } catch (error) {
+          audit(signal.aborted ? 'DEADLINE_EXCEEDED' : 'ERROR');
           if (signal.aborted) throw new DeadlineReached();
           throw error;
         }
-        checkDeadline(limits);
+        try {
+          checkDeadline(limits);
+        } catch (error) {
+          audit('DEADLINE_EXCEEDED');
+          throw error;
+        }
+        audit('OK');
         return reply;
       },
     };
@@ -227,10 +241,11 @@ export class Flow {
         amount: r.amount,
         currency: r.currency,
         exact: history.exact,
+        fuzzy: history.fuzzy,
       });
       const chunks: Chunk[] = [];
       const queries = new Set<string>(policies.map((p) => p.query));
-      if (history.exact.length) queries.add(duplicateQuery);
+      if (history.exact.length || history.fuzzy.length) queries.add(duplicateQuery);
       if (bankDetails(signals, vendor.bankLast4).indicators.length)
         bankQueries.forEach((q) => queries.add(q));
       if (poNumber && (!po || !po.receipts.length)) queries.add(receiptQuery);

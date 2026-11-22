@@ -52,6 +52,49 @@ it('validates history input and returns stable IDs', () => {
     }).exact[0]?.recordId,
   ).toBe('HIST-3301');
 });
+it('reports a probable fuzzy duplicate only when all FIN-POL-005 §1 signals agree', () => {
+  // FIN-002-fuzzy: HIST-3301 is INV-77120, PO-58020, 2026-09-18, AUD 4,950.00.
+  const query = {
+    vendorId: 'V-1012',
+    invoiceNumber: 'INV-77131',
+    grossAmount: '4964.85',
+    currency: 'AUD',
+    invoiceDate: '2026-09-23',
+    poNumber: 'PO-58020',
+  };
+  expect(tools.history(query)).toEqual({
+    exact: [],
+    fuzzy: [
+      {
+        recordId: 'HIST-3301',
+        status: 'PAID',
+        matchBasis: 'same purchase order; invoice date 5 days apart; gross amount 0.30% higher',
+      },
+    ],
+  });
+  // 0.5% is not below 0.5%, 15 days is outside 14, and nothing links the records.
+  for (const change of [
+    { grossAmount: '4974.75' },
+    { invoiceDate: '2026-10-03' },
+    { poNumber: 'PO-99999' },
+    { currency: 'NZD' },
+  ])
+    expect(tools.history({ ...query, ...change }).fuzzy).toEqual([]);
+  // The same invoice number after removing punctuation links the records without a PO.
+  const renumbered = { ...query, invoiceNumber: 'inv 77120', grossAmount: '4960.00' };
+  delete (renumbered as { poNumber?: string }).poNumber;
+  expect(tools.history(renumbered).fuzzy).toEqual([
+    {
+      recordId: 'HIST-3301',
+      status: 'PAID',
+      matchBasis:
+        'same invoice number after removing punctuation; invoice date 5 days apart; gross amount 0.20% higher',
+    },
+  ]);
+  // An exact match is reported once, as exact.
+  const exact = tools.history({ ...query, invoiceNumber: 'INV-77120', grossAmount: '4950.00' });
+  expect([exact.exact.length, exact.fuzzy.length]).toEqual([1, 0]);
+});
 it('rejects submit without approval IDs or key before writing', () => {
   const db = openDatabase(':memory:', 'erp-sim');
   const input = {

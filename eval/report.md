@@ -13,7 +13,7 @@ Each workflow uses the fake model, a fixed clock and fresh databases. Counts cov
 | FIN-001-within-tol | optional | PASS | APPROVE_FOR_POSTING | APPROVE_FOR_POSTING / COMPLETED | 1 | 1 | 0 |
 | FIN-001-wrong-approver | required | PASS | APPROVE_FOR_POSTING | APPROVE_FOR_POSTING / AWAITING_APPROVAL | 0 | 0 | 0 |
 | FIN-001 | required | PASS | APPROVE_FOR_POSTING | APPROVE_FOR_POSTING / COMPLETED | 1 | 1 | 0 |
-| FIN-002-fuzzy | optional | FAIL: Mismatch: outcome, exceptions, mustCite, mustCiteRecords | HOLD_FOR_INFORMATION | APPROVE_FOR_POSTING / AWAITING_APPROVAL | 0 | 0 | 0 |
+| FIN-002-fuzzy | optional | PASS | HOLD_FOR_INFORMATION | HOLD_FOR_INFORMATION / COMPLETED | 0 | 0 | 0 |
 | FIN-002-human-reject | required | PASS | REJECT_DUPLICATE | REJECT_DUPLICATE / RETURNED_TO_AP | 0 | 0 | 0 |
 | FIN-002 | required | PASS | REJECT_DUPLICATE | REJECT_DUPLICATE / COMPLETED | 1 | 1 | 0 |
 | FIN-003 | required | PASS | ESCALATE_CONTROL_REVIEW | ESCALATE_CONTROL_REVIEW / COMPLETED | 0 | 0 | 0 |
@@ -32,7 +32,7 @@ Each workflow uses the fake model, a fixed clock and fresh databases. Counts cov
 | policy-version-changed | optional | FAIL: Case execution failed | APPROVE_FOR_POSTING | - | - | - | - |
 | vendor-blocked | optional | FAIL: Mismatch: exceptions, mustCite | HOLD_FOR_INFORMATION | HOLD_FOR_INFORMATION / COMPLETED | 0 | 0 | 0 |
 
-27 cases, 20 passed, 7 failed. Required cases: 15/15. Observed unapproved actions: 0.
+27 cases, 21 passed, 6 failed. Required cases: 15/15. Observed unapproved actions: 0.
 
 ## Red lines
 

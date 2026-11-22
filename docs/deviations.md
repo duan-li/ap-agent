@@ -156,3 +156,34 @@ Status is `Agreed` (decided before implementation), `Implemented` (in the code, 
 - **What:** A simulated crash returns a typed `Transient` error carrying `runId`. The ordinary transient response still permits `retryAfterMs`. Both map to CLI exit code 75.
 - **Why and impact:** An interruption during start can happen before the caller receives a run ID. Returning the ID lets the caller reopen the store and resume the checkpoint. A simulated crash does not produce a final inbox response.
 - **Proof:** `eval/observe.ts` uses the returned ID to reopen and resume the interrupted step and ERP cases.
+
+## D-14 The CLI derives a delivery ID from the callback content
+
+- **Type:** Clarification
+- **Status:** Implemented after M5 acceptance, approved by the owner
+- **Design reference:** TECH.md, Entry points contract, CLI walkthrough ("`decode` ... generates a delivery ID")
+- **What:** When `ap approve` or `ap reject` has no `--delivery-id`, the CLI uses `cli-` plus a SHA-256 of the command, run ID, approval ID, approver and reason. An explicit `--delivery-id` still wins.
+- **Why:** A random ID per invocation made a repeated identical command a new callback. It still submitted once, but returned `Conflict` instead of the first response. The brief asks for a stable replay-safe response to a duplicate approval.
+- **Impact:** Repeating the same command returns the stored first response, byte for byte, and records `APPROVAL_DUPLICATE_IGNORED`. A changed decision, approver or reason is a new callback and meets the approval state check as before. Run-busy lease conflicts happen before the inbox records a delivery, so they are never replayed.
+- **Proof:** `tests/cli.test.ts`, "derives one delivery ID per callback content" and the FIN-001 CLI flow, which approves twice without the flag and gets one posting.
+
+## D-15 The Anthropic adapter uses the SDK, a configured model and structured output
+
+- **Type:** Clarification
+- **Status:** Implemented after M5 acceptance, approved by the owner. Live run passed 5 of 5 brief cases with `claude-haiku-5-5` on 2026-11-22
+- **Design reference:** TECH.md, Adapters; Tests ("Not tested: the Anthropic SDK"); Contracts, model output validation
+- **What:** The adapter calls the Messages API through `@anthropic-ai/sdk` with `maxRetries: 0`, a 30 s timeout and the request abort signal. `ANTHROPIC_MODEL` selects the model, default `claude-haiku-5-5`. The reply is constrained with `output_config.format` built from the Zod extraction or rationale schema. Only text blocks are returned. `npm run test:live` runs the five brief cases through the real provider and is excluded from `npm test`.
+- **Why:** The model ID was hard-coded to a previous-generation snapshot. Current models emit thinking blocks, which the old reply parser rejected. The brief asks for model configuration outside the orchestration code and for model-dependent runs separated from stable tests.
+- **Impact:** Evidence still validates, repairs once and fails explicitly. A refusal or a truncated reply arrives as text that fails validation. SDK retries stay off so the run budget counts every call. A provider error maps to Transient and the run can be resumed.
+- **Proof:** `tests/anthropic.test.ts` checks the request, model selection, thinking blocks, refusal and single-call failure against a recorded transport. `tests/live/anthropic.live.test.ts` is the live gate.
+
+## D-16 What makes a fuzzy invoice match probable
+
+- **Type:** Clarification
+- **Status:** Implemented before submission at the owner's request. The thresholds follow FIN-POL-005 §1
+- **Design reference:** TECH.md, Contracts (`check_invoice_history` returns exact and fuzzy matches; confidence counts fuzzy matches); FIN-POL-005 §1 and §2; `cases/FIN-002-fuzzy.json`
+- **What:** FIN-POL-005 §1 lists the fuzzy signals but not when they amount to a probable duplicate. `check_invoice_history` now reports a record as a fuzzy match when the vendor and currency agree, the gross amount differs by less than 0.5%, the invoice dates are at most 14 days apart, and either the purchase order or the punctuation-stripped invoice number is the same. An exact match is never also reported as fuzzy. The match basis names the signals, for example "same purchase order; invoice date 5 days apart; gross amount 0.30% higher". Attachment hashes are not compared, because the fixture hashes are placeholders.
+- **Why:** The tool always returned an empty fuzzy list, so a resubmitted invoice with a new number and a slightly higher amount was proposed for posting. FIN-POL-005 §2 requires a hold for a probable fuzzy match.
+- **Impact:** When there is no exact match, Rules add the failed finding `PROBABLE_FUZZY_DUPLICATE` citing FIN-POL-005 §2 with both the history record and the current invoice number as evidence, a `DUPLICATE_RISK` exception owned by Accounts Payable, and a `HOLD_FOR_INFORMATION` outcome. The next action asks AP to confirm with the vendor. Confidence drops to MEDIUM. `F-DUPLICATE_CHECK` fails for an exact or a fuzzy match. Exact duplicates behave as before.
+- **Proof:** `tests/tools.contract.test.ts` checks each threshold and both identifier links. FIN-002-fuzzy passes and joined `eval/green.json`. FIN-002 and FIN-002-human-reject are unchanged.
+
