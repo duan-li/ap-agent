@@ -190,3 +190,9 @@ it('keeps a late submit reply, because the write has happened', async () => {
   expect(reply).toBe('posted');
   expect(attempts.map((a) => a.outcome)).toEqual(['OK']);
 });
+
+it('makes a write attempt even past the deadline, because its caller has committed', async () => {
+  const { ctx, attempts } = setup({}, start - 1);
+  await expect(callTool('submit_finance_decision', () => 'posted', ctx)).resolves.toBe('posted');
+  expect(attempts.map((a) => a.outcome)).toEqual(['OK']);
+});

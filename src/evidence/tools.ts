@@ -154,7 +154,9 @@ export async function callTool<T>(
 ): Promise<T> {
   const { attempts, timeoutMs, read } = toolPolicy[tool];
   for (let attempt = 1; ; attempt++) {
-    checkDeadline(ctx);
+    // A write is checked by its caller before the intent moves to SENDING.
+    // Refusing it here would leave a SENDING row that was never sent.
+    if (read) checkDeadline(ctx);
     ctx.beforeAttempt();
     const started = ctx.clock.now().getTime();
     let value: T | undefined;

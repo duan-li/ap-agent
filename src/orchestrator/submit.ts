@@ -73,6 +73,9 @@ export async function submit(
       .run(key).changes
   )
     return conflict('Already sending');
+  // From here the ERP call is always made: no deadline or budget check
+  // stands between SENDING and the send.
+  store.event(id, meta, 'OUTBOX_SENDING', { idempotencyKey: key });
   const { vendorId, invoiceRef, amount, currency } = snapshot;
   const receipt = await attempt(store, id, meta, 'submit_finance_decision', () =>
     post(

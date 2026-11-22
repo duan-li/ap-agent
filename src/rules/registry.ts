@@ -227,5 +227,28 @@ export function reconcile(r: WorkflowCase['request'], e: Evidence) {
       nextReviewDate,
     });
   }
-  return { outcome, calculations, findings, authority, unknowns, exceptions, indicators };
+  const assumptions = calculations
+    .filter((c) => c.check === 'LINE_AMOUNT_DERIVED')
+    .map(
+      (c) =>
+        'Line ' +
+        c.line +
+        ' amount is computed as quantity x unit price (' +
+        c.inputs.quantity +
+        ' x ' +
+        c.inputs.unitPrice +
+        ' = ' +
+        c.result.expected +
+        '); the stated line amount was not extracted. The stated total still has to match.',
+    );
+  return {
+    outcome,
+    calculations,
+    findings,
+    authority,
+    unknowns,
+    exceptions,
+    indicators,
+    assumptions,
+  };
 }

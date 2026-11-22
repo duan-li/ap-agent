@@ -124,7 +124,11 @@ export function recommend(
     policyFindings: decision.findings,
     inferences: indicators,
     unknowns: decision.unknowns,
-    assumptions: ['Approval amount includes GST (FIN-POL-003 §1)'],
+    assumptions: [
+      'Approval amount includes GST (FIN-POL-003 §1)',
+      // Journals written before D-10 carry no assumptions.
+      ...(decision.assumptions ?? []),
+    ],
     exceptions,
     explanation,
     confidence: confidence(e, decision.unknowns),

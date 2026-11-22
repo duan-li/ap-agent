@@ -88,7 +88,10 @@ export async function extract(
     add(prefix + 'description', line.description);
     add(prefix + 'quantity', line.quantityRaw, true);
     add(prefix + 'unitPrice', line.unitPriceRaw, true);
-    add(prefix + 'lineAmount', line.lineAmountRaw, true);
+    // An absent stated amount is not a grounding failure: Rules derive it
+    // from the grounded quantity and unit price (D-10). A stated amount that
+    // fails grounding is still dropped to unknowns.
+    if (line.lineAmountRaw) add(prefix + 'lineAmount', line.lineAmountRaw, true);
   });
   return {
     fields,

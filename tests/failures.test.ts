@@ -122,6 +122,21 @@ it('repairs malformed model output once and audits both events', async () => {
     expect(view.result?.sourcedFacts.find((f) => f.id === 'invoiceNumber')?.value).toBe(
       'INV-88412',
     );
+    // The repaired reading states no line amounts; Rules derive them (D-10).
+    expect(view.status).toBe('AWAITING_APPROVAL');
+    expect(view.result?.proposal.outcome).toBe('APPROVE_FOR_POSTING');
+    expect(view.result?.unknowns).toEqual([]);
+    expect(
+      view.result?.calculations
+        .filter((c) => c.check === 'LINE_AMOUNT_DERIVED')
+        .map((c) => [c.line, c.result.expected]),
+    ).toEqual([
+      [1, '12000.00'],
+      [2, '4000.00'],
+    ]);
+    expect(view.result?.assumptions).toEqual(
+      expect.arrayContaining([expect.stringContaining('Line 1 amount is computed')]),
+    );
     expect(run.financeWrites()).toBe(0);
   });
 });
@@ -310,6 +325,39 @@ it('discards a model reply that arrives after the request deadline', async () =>
     expect(view).toMatchObject({ kind: 'ok', value: { status: 'RUNNING', result: null } });
     if (view.kind === 'ok')
       expect(view.value.events.some((e) => e.type === 'STEP_COMPLETED')).toBe(false);
+  } finally {
+    runtime.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+it('sends once the intent is SENDING, even if the deadline passes at that moment', async () => {
+  const c = find('FIN-001');
+  const dir = mkdtempSync(join(tmpdir(), 'ap-sending-'));
+  const clock = new FixedClock('2026-11-22T00:00:00Z');
+  const deadline = start + 60_000;
+  const lines: string[] = [];
+  // The deadline expires exactly between SENDING and the first ERP call.
+  const log = (line: string) => {
+    lines.push(line);
+    if (JSON.parse(line).type === 'OUTBOX_SENDING') clock.advance(deadline - clock.now().getTime());
+  };
+  const runtime = openApp(dir, { model: new FakeModel(), clock, ids: seededIds('send') }, log);
+  try {
+    const view = await runtime.app.startRun(c.request, meta('start', deadline));
+    if (view.kind !== 'ok') throw new Error('Start failed');
+    const next = view.value.result!.proposal.nextAction;
+    if (!('approvalId' in next)) throw new Error('No approval requested');
+    const reply = await runtime.app.resolveApproval(
+      { runId: view.value.runId, approvalId: next.approvalId, decision: 'APPROVE' },
+      meta('approve', deadline, 'u-204'),
+    );
+    expect(reply).toMatchObject({ kind: 'ok', value: { status: 'COMPLETED' } });
+    const final = await runtime.app.getRun(view.value.runId, meta('read', deadline + 60_000));
+    expect(final).toMatchObject({ kind: 'ok', value: { outbox: { status: 'SENT' } } });
+    const submits = lines.filter((l) => JSON.parse(l).name === 'submit_finance_decision');
+    expect(submits).toHaveLength(1);
+    expect(runtime.erp.prepare('SELECT count(*) n FROM erp_postings').get()?.n).toBe(1);
   } finally {
     runtime.close();
     rmSync(dir, { recursive: true, force: true });

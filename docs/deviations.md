@@ -53,7 +53,7 @@ Status is `Agreed` (decided before implementation), `Implemented` (in the code, 
 - **Status:** Implemented in M0
 - **What:** The model response schema allows a missing `lineAmountRaw`. The default fake extracts this field for every supplied invoice. Named scripts replay their recorded responses.
 - **Why:** The verified v3 reference and repair responses contain quantity and unit price only.
-- **Impact:** A missing stated amount is missing evidence. Multiplying quantity by unit price cannot supply evidence of the amount printed on the invoice.
+- **Impact:** Revised by D-10. A stated amount that fails grounding is still missing evidence and is never replaced. An amount the reading does not state at all is derived from the grounded quantity and unit price, and the stated tax and total must still match.
 - **Proof:** `tests/fake.test.ts` exercises both the invoice parser and the recorded repair response.
 
 ## D-4 AI-strengthened red-line assertions
@@ -94,7 +94,7 @@ Status is `Agreed` (decided before implementation), `Implemented` (in the code, 
 - **Type:** Clarification
 - **Status:** Implemented in M3
 - **Design reference:** TECH.md, Contracts (Run budget) and Persistence and migrations; PLAN.md, M3 and M4
-- **What:** `migrations/0002_run_budget.sql` adds the three counters, the three limits and `failure_reason` to `runs`. The limits are written when the run starts (default 20, 15 and 6, or lower values from a case's `faults.budget`), so a resume uses the stored limits and the spent counts. A case can only lower a limit: the case schema rejects higher values, and `openApp` clamps them for callers that skip the schema. Every orchestrator step is charged when it executes: extract, gather, reconcile, report, request_approval, resolve_approval and submit, so FIN-001 takes seven. A replayed step is free. A refused request_approval or resolve_approval rolls back, so no approval exists or the approval stays `PENDING`, and the run ends `FAILED`. Submit charges its step before `SENDING`. Every tool attempt is charged, retries included, and so is every model call, the repair included. A refused attempt is never made: the run ends `FAILED` with `BUDGET_EXCEEDED`, a `BUDGET_EXCEEDED` event and a `RUN_FAILED` event. Before an approved intent moves to `SENDING`, one tool call must still be left; otherwise the intent is `CANCELLED` and nothing is sent. M4's inbox migration becomes `0003_inbox.sql`, not the `0002_inbox.sql` PLAN.md names.
+- **What:** `migrations/0002_run_budget.sql` adds the three counters, the three limits and `failure_reason` to `runs`. The limits are written when the run starts (default 20, 15 and 6, or lower values from a case's `faults.budget`), so a resume uses the stored limits and the spent counts. A case can only lower a limit: the case schema rejects higher values, and `openApp` clamps them for callers that skip the schema. Every orchestrator step is charged when it executes: extract, gather, reconcile, report, request_approval, resolve_approval and submit, so FIN-001 takes seven. A replayed step is free. A refused request_approval or resolve_approval rolls back, so no approval exists or the approval stays `PENDING`, and the run ends `FAILED`. Submit charges its step and checks the request deadline before `SENDING`. After `SENDING` (audited as `OUTBOX_SENDING`) nothing can refuse the ERP call, so a `SENDING` row always means the call was made. A `SENDING` row left by a crash or an ERP error is recovered in M4 (D-2). Every tool attempt is charged, retries included, and so is every model call, the repair included. A refused attempt is never made: the run ends `FAILED` with `BUDGET_EXCEEDED`, a `BUDGET_EXCEEDED` event and a `RUN_FAILED` event. Before an approved intent moves to `SENDING`, one tool call must still be left; otherwise the intent is `CANCELLED` and nothing is sent. M4's inbox migration becomes `0003_inbox.sql`, not the `0002_inbox.sql` PLAN.md names.
 - **Why:** `0001_init.sql` was applied in M1, and applied migrations are never edited. The design's own `runs` excerpt already holds the counters.
 - **Impact:** `ap get` reports `budget` from the stored counters and a `failureReason` for failed runs. M4 renames one migration file.
 - **Proof:** `tests/failures.test.ts`: the budget-exceeded run, a deadline followed by resume that keeps the spent count, the refused submit, the model budget, the step budget at each of FIN-001's last three steps, and the rejected and clamped raised limits.
@@ -112,19 +112,19 @@ Status is `Agreed` (decided before implementation), `Implemented` (in the code, 
 ## D-9 An unverified receipt keeps the MISSING_RECEIPT code
 
 - **Type:** Clarification
-- **Status:** Implemented in M3
+- **Status:** Implemented in M3; confirmed by the owner on 2026-11-22
 - **Design reference:** PLAN.md, M3 (`rules/checks/threeWayMatch.ts`); TECH.md, Contracts (FIN-004 view); `cases/FIN-004.json`
 - **What:** PLAN.md says `MISSING_RECEIPT` applies "only when the receipt is confirmed absent". TECH.md and `cases/FIN-004.json` use `MISSING_RECEIPT` for the unreachable PO too, and FIN-POL-007 §1 has no separate code. The implementation keeps the exception code and states the difference in a `GOODS_RECEIPT` record (`C-RECEIPT`, verification `UNVERIFIED` or `NOT_FOUND`) and in the exception wording. Unverified reads "Unable to verify goods receipt for PO-55388: the purchase order system failed on 3 attempts (TIMEOUT)" and lists the PO and the receipt as unknowns. Confirmed absent reads "No goods receipt exists for PO-55388", with no unknowns.
 - **Why:** The design and the verified case agree. The plan's sentence is read as being about wording, which is what the case asserts.
 - **Impact:** `FIN-004` and `FIN-004-po-recovered-no-receipt` both report `MISSING_RECEIPT`, distinguished by `receiptVerification`.
 - **Proof:** The FIN-004 and no-receipt tests in `tests/failures.test.ts`; cases `FIN-004` and `FIN-004-po-recovered-no-receipt`.
 
-## D-10 FIN-001-malformed conflicts with D-3
+## D-10 Derive a line amount the invoice reading does not state
 
-- **Type:** Open question for the owner
-- **Status:** Open
+- **Type:** Departure approved by the owner
+- **Status:** Implemented in M3; option 1 chosen by the owner on 2026-11-22
 - **Design reference:** D-3; `cases/FIN-001-malformed.json`; `fixtures/model_scripts/FIN-001-malformed.json`; `tests/judgement.test.ts` (bad-citation)
-- **What:** The repaired extraction in `FIN-001-malformed.json` has quantity and unit price but no `lineAmountRaw`, like the FIN-001 reference and `bad-citation` scripts. Under D-3 a missing stated line amount is missing evidence, so the repaired run holds. The case expects `APPROVE_FOR_POSTING` and `AWAITING_APPROVAL`. The M2 test expects FIN-001 with `bad-citation` to hold for the same reason. The verifier passes, so AGENTS.md points at the code, but the code follows an agreed deviation.
-- **Why:** The repair path itself works: one `MODEL_OUTPUT_INVALID`, one repair call, one `MODEL_OUTPUT_REPAIRED`, and `malformed-twice` ends `FAILED`. Only the outcome after the repair differs.
-- **Impact:** `FIN-001-malformed` is not in `eval/green.json` until the owner decides. It fails only on `outcome` and `statusBeforeApproval`.
-- **Proof:** _pending the decision_
+- **What:** When an extraction has a grounded quantity and unit price but states no line amount, Rules compute quantity x unit price. The result is recorded as a `LINE_AMOUNT_DERIVED` calculation (`C-ARITH-n`) and listed as an assumption. It feeds the price tolerance and the tax and total checks like a stated amount. A stated amount that fails grounding stays in unknowns and is never replaced by the product. A price exception on a derived line cites `C-ARITH-n` instead of the missing field.
+- **Why:** The repaired extraction in `FIN-001-malformed.json`, like the FIN-001 reference and `bad-citation` scripts, states quantity and unit price only, and the verified case expects `APPROVE_FOR_POSTING`. The amount paid stays grounded: the stated total must equal the derived subtotal plus tax. A wrong printed line amount with a right total is the only thing no longer caught, and it cannot change the payment.
+- **Impact:** `FIN-001-malformed` reaches `AWAITING_APPROVAL` after one repair and joins `eval/green.json`. FIN-001 with `bad-citation` now proposes `APPROVE_FOR_POSTING`, with the unsupported explanation still discarded and audited, so the M2 test expectation changed. The default fake states every line amount, so other cases are unchanged.
+- **Proof:** `tests/lineAmount.test.ts` (stated, derived, grounding failure kept unknown, missing inputs, inflated total held); the repair test in `tests/failures.test.ts`; case `FIN-001-malformed`.

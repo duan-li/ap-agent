@@ -14,7 +14,9 @@ const meta = {
 
 it.each([
   ['FIN-003', 'FIN-003-fooled', 'ESCALATE_CONTROL_REVIEW'],
-  ['FIN-001', 'bad-citation', 'HOLD_FOR_INFORMATION'],
+  // The script states no line amounts; Rules derive them (D-10), so only the
+  // explanation is discarded and the outcome is unchanged.
+  ['FIN-001', 'bad-citation', 'APPROVE_FOR_POSTING'],
 ])('discards and audits an unsupported explanation in %s with %s', async (id, script, outcome) => {
   const c = loadCases().find((c) => c.id === id)!;
   const run = await openTestRun({
