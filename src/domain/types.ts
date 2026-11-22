@@ -166,6 +166,11 @@ export const invoiceExtraction = object({
     .min(1),
   suspiciousContent: strings,
 });
+export const supplierClaims = object({
+  suspiciousContent: strings,
+  bankAccountClaim: text,
+  approvalStatusClaim: text,
+});
 export const modelPurpose = z.enum(['extract', 'extract-repair', 'explain']);
 export const modelScript = object({
   _note: text,
@@ -455,7 +460,13 @@ export const runResult = object({
     }),
   ),
   policyFindings: z.array(
-    object({ id: text, passed: z.boolean(), evidence: strings, citation: text }),
+    object({
+      id: text,
+      detail: text.optional(),
+      passed: z.boolean(),
+      evidence: strings,
+      citation: text,
+    }),
   ),
   inferences: z.array(object({ text, evidence: strings })),
   unknowns: strings,
@@ -515,7 +526,12 @@ export const requestMetadata = object({
   signal: z.instanceof(AbortSignal),
 });
 
-export const caseSetup = caseFile.pick({ request: true, faults: true, modelScript: true }).strip();
+const wrappedCase = caseFile.pick({ request: true, faults: true, modelScript: true }).strip();
+
+export const caseSetup = z.union([
+  wrappedCase,
+  request.transform((request) => ({ request, faults: {}, modelScript: 'default' })),
+]);
 
 export type RequestMeta = z.infer<typeof requestMetadata>;
 export type ApprovalCommand = z.infer<typeof approvalCommand>;

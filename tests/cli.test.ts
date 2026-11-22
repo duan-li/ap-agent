@@ -28,7 +28,7 @@ it('maps typed errors', () => {
 });
 
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { RunView } from '../src/application/apService.ts';
@@ -58,6 +58,28 @@ it('persists the FIN-001 review, audit trail and approval across CLI invocations
     expect(cli(['ingest']).chunks).toBeGreaterThan(0);
     expect(cli(['approve', 'r', '--unknown'], 2).type).toBe('Validation');
     expect(cli(['get', 'missing-run'], 5).type).toBe('NotFound');
+    const plainPath = join(dir, 'plain.json');
+    writeFileSync(
+      plainPath,
+      JSON.stringify({
+        caseId: 'plain',
+        invoiceRef: 'INV-88412',
+        vendor: 'V-1007',
+        amount: '17600.00',
+        currency: 'AUD',
+      }),
+    );
+    const plain: RunView = cli(['start', '--case', plainPath]);
+    expect(plain.result?.proposal).toMatchObject({
+      outcome: 'HOLD_FOR_INFORMATION',
+      nextAction: { owner: 'Accounts Payable', action: expect.stringMatching(/line/i) },
+    });
+    expect(plain.result?.unknowns).toContain('invoiceLines');
+    expect(
+      plain.events.some(
+        (e) => e.type === 'APPROVAL_REQUESTED' || e.name === 'submit_finance_decision',
+      ),
+    ).toBe(false);
     const held: RunView = cli(['start', '--case', 'cases/FIN-001-tol-breach.json']);
     expect(held.result?.proposal.outcome).toBe('HOLD_FOR_INFORMATION');
     expect(held.result?.confidence.level).toBe('HIGH');

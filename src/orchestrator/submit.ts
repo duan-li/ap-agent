@@ -91,7 +91,10 @@ export function submit(
     result.actionsTaken.push({ action: snapshot.action, postingRef: receipt.postingRef });
     result.status = 'COMPLETED';
     result.decisionSummary = summary(result.status, true, [], result.unknowns, snapshot.action);
-    result.proposal.nextAction = { owner: 'Accounts Payable', action: 'Posting complete' };
+    result.proposal.nextAction = {
+      owner: 'Accounts Payable',
+      action: snapshot.action === 'POST' ? 'Posting complete' : 'New invoice submission rejected',
+    };
     store.save(result, 'submit');
     store.event(id, meta, 'STEP_COMPLETED', { name: 'submit', postingRef: receipt.postingRef });
   });

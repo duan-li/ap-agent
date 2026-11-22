@@ -13,10 +13,12 @@ export function summary(
     if (eligible) paymentEligibility = 'Eligible for posting once approved';
   } else if (status === 'SUBMITTING') {
     approvalStatus = 'Approved';
-    paymentEligibility = 'Eligible for posting';
+    if (eligible) paymentEligibility = 'Eligible for posting';
   } else if (action === 'POST') {
     approvalStatus = 'Approved';
     paymentEligibility = 'Posted';
+  } else if (action === 'REJECT_INVOICE') {
+    approvalStatus = 'Approved';
   } else if (status === 'RETURNED_TO_AP') {
     approvalStatus = 'Rejected';
   }

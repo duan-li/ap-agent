@@ -32,6 +32,13 @@ export async function openTestRun(setup: Pick<WorkflowCase, 'id' | 'faults' | 'm
           const e = JSON.parse(l);
           return e.type === 'TOOL_CALL' && e.name === 'submit_finance_decision';
         }).length,
+      postings: () =>
+        runtime.erp
+          .prepare(
+            'SELECT finance_action, invoice_no_normalised, idempotency_key FROM erp_postings',
+          )
+          .all(),
+      historyRecords: runtime.historyRecords,
       vendorMaster: runtime.vendorMaster,
       logs: () => logs.join('\n'),
       sqliteContents: () =>

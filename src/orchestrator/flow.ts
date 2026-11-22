@@ -2,9 +2,15 @@ import type { DatabaseSync } from 'node:sqlite';
 import type { ModelProvider } from '../adapters/model/provider.ts';
 import type { IdGenerator } from '../adapters/clock.ts';
 import { transaction } from '../adapters/migrate.ts';
-import { extract, invoiceDocument } from '../evidence/extract.ts';
+import {
+  extract,
+  invoiceDocument,
+  missingInvoice,
+  supplementarySignals,
+} from '../evidence/extract.ts';
 import type { ReadTools } from '../evidence/tools.ts';
-import { policies, reconcile } from '../rules/registry.ts';
+import { policies, reconcile, bankQueries, duplicateQuery } from '../rules/registry.ts';
+import { bankDetails } from '../rules/checks/bankDetails.ts';
 import { recommend } from '../report/recommend.ts';
 import { citations } from '../report/citations.ts';
 import { summary } from '../report/summary.ts';
@@ -61,10 +67,11 @@ export class Flow {
   private async review(id: string, r: WorkflowCase['request'], meta: RequestMeta) {
     const { store, tools } = this;
     const path = r.attachments?.[0];
-    if (!path || !/^fixtures\/attachments\/[\w-]+\.txt$/.test(path))
+    if (path && !/^fixtures\/attachments\/[\w-]+\.txt$/.test(path))
       throw new WorkflowError({ type: 'Validation', issues: ['attachments'] });
 
     const invoice = await step(store, id, meta, 'extract', async () => {
+      if (!path) return missingInvoice();
       const { chunkId, text } = invoiceDocument(path);
       store.event(id, meta, 'MODEL_CALL', { purpose: 'extract' });
       const result = await extract(this.model, store.redact(text), chunkId);
@@ -74,6 +81,7 @@ export class Flow {
     });
     const date = store.clock.now().toISOString().slice(0, 10);
     const data = await step(store, id, meta, 'gather', () => {
+      const signals = (r.attachments ?? []).flatMap(supplementarySignals);
       const vendor = attempt(store, id, meta, 'get_vendor_record', () => tools.vendor(r.vendor));
       const poNumber = invoice.fields.poNumber?.value;
       const po = poNumber
@@ -97,7 +105,11 @@ export class Flow {
         exact: history.exact,
       });
       const chunks: Chunk[] = [];
-      for (const query of new Set(policies.map((p) => p.query))) {
+      const queries = new Set<string>(policies.map((p) => p.query));
+      if (history.exact.length) queries.add(duplicateQuery);
+      if (bankDetails(signals, vendor.bankLast4).indicators.length)
+        bankQueries.forEach((q) => queries.add(q));
+      for (const query of queries) {
         const asOf =
           query === policies[4].query ? date : (invoice.fields.invoiceDate?.value ?? date);
         const hits = attempt(store, id, meta, 'retrieve_finance_documents', () =>
@@ -110,10 +122,18 @@ export class Flow {
         });
         chunks.push(...hits);
       }
-      return { vendor, po, history, historyEvent, chunks };
+      return { vendor, po, history, historyEvent, chunks, signals };
     });
-    const evidence = { ...data, invoice };
-    const decision = await step(store, id, meta, 'reconcile', () => reconcile(r, evidence));
+    const evidence = {
+      ...data,
+      invoice,
+      signals: data.signals ?? (r.attachments ?? []).flatMap(supplementarySignals),
+      asOf: date,
+    };
+    const journalled = await step(store, id, meta, 'reconcile', () => reconcile(r, evidence));
+    // A partially completed M1 run may have a duplicate verdict without the
+    // policy and history evidence now required to request a rejection.
+    const decision = journalled.exceptions ? journalled : reconcile(r, evidence);
     const result = await step(store, id, meta, 'report', async () => {
       const versions = Object.fromEntries(
         data.chunks
@@ -121,9 +141,9 @@ export class Flow {
           .map((c) => [c.documentId, c.version]),
       );
       const snapshot =
-        decision.outcome === 'APPROVE_FOR_POSTING'
+        decision.outcome === 'APPROVE_FOR_POSTING' || decision.outcome === 'REJECT_DUPLICATE'
           ? freezeSnapshot({
-              action: 'POST',
+              action: decision.outcome === 'REJECT_DUPLICATE' ? 'REJECT_INVOICE' : 'POST',
               vendorId: r.vendor,
               invoiceRef: r.invoiceRef,
               amount: r.amount,
@@ -142,15 +162,11 @@ export class Flow {
             (f.passed ? ' passed.' : ' requires review.'),
         })),
       });
-      return recommend(
-        id,
-        r,
-        evidence,
-        decision,
-        this.ids.next('apr'),
-        snapshot,
-        citations(raw, decision.findings, decision.calculations),
-      );
+      const { explanation, rejected } = citations(raw, decision.findings, decision.calculations);
+      if (rejected) {
+        store.event(id, meta, 'CITATION_INVALID', { rejected });
+      }
+      return recommend(id, r, evidence, decision, this.ids.next('apr'), snapshot, explanation);
     });
     transaction(store.db, () => {
       const next = result.proposal.nextAction,
@@ -231,7 +247,13 @@ export class Flow {
           "INSERT INTO outbox(idempotency_key,run_id,approval_id,finance_action,status) VALUES(?,?,?,?,'PENDING')",
         ).run(id + '/' + cmd.approvalId + '/' + snap.action, id, cmd.approvalId, snap.action);
       else result.proposal.nextAction = { owner: 'Accounts Payable', action: 'Review rejection' };
-      result.decisionSummary = summary(result.status, accepted, [], result.unknowns, 'None');
+      result.decisionSummary = summary(
+        result.status,
+        accepted && snap.action === 'POST',
+        [],
+        result.unknowns,
+        'NONE',
+      );
       store.save(result, 'resolve_approval');
       return true;
     });

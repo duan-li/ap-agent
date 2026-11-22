@@ -42,9 +42,10 @@ it('retains only explanations with an existing finding and supported numbers', (
   const raw = JSON.stringify({
     rationale: [
       valid,
+      { text: 'Tax is AUD -1,600.00.', findingIds: ['F-TAX'] },
       { text: 'Tax is AUD 100.', findingIds: ['F-TAX'] },
       { text: 'Authorised.', findingIds: ['F-FAKE'] },
     ],
   });
-  expect(citations(raw, [finding], [calculation])).toEqual([valid]);
+  expect(citations(raw, [finding], [calculation])).toEqual({ explanation: [valid], rejected: 3 });
 });

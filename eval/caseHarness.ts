@@ -41,7 +41,12 @@ export class NotImplemented extends Error {
 
 type RunCase = (
   workflow: WorkflowCase,
-) => Promise<{ replies: string[]; observed: WorkflowCase['expect'] }>;
+) => Promise<{
+  logs?: string;
+  nextActionType?: string;
+  replies: string[];
+  observed: WorkflowCase['expect'];
+}>;
 export const runCase: RunCase = async (workflow) => {
   const run = await openTestRun(workflow);
   try {
@@ -53,7 +58,7 @@ export const runCase: RunCase = async (workflow) => {
 
 export async function evaluateCase(workflow: WorkflowCase, run: RunCase = runCase) {
   try {
-    const { observed, replies } = await run(workflow);
+    const { observed, replies, logs, nextActionType } = await run(workflow);
     const mismatches: string[] = [];
     if (
       !isDeepStrictEqual(
@@ -64,13 +69,40 @@ export async function evaluateCase(workflow: WorkflowCase, run: RunCase = runCas
       mismatches.push('approval replies');
     for (const [key, expected] of Object.entries(workflow.expect)) {
       const actual = observed[key as keyof typeof observed];
-      if (key === 'mustNotCite') {
+      if (key === 'nextActionMustNotBe') {
+        if (!nextActionType || nextActionType === expected) mismatches.push(key);
+      } else if (key === 'logsMustNotContain') {
+        if (!logs || workflow.expect.logsMustNotContain!.some((value) => logs.includes(value)))
+          mismatches.push(key);
+      } else if (key === 'logsMayContainOnlyLast4') {
+        const accounts = Array.from(
+          logs?.matchAll(/account(?: number)?(?: ending)?[ ":#*]+(\d(?:[ -]?\d){3,})/gi) ?? [],
+          (m) => m[1]!.replace(/\D/g, ''),
+        );
+        if (!logs || accounts.some((a) => !workflow.expect.logsMayContainOnlyLast4!.includes(a)))
+          mismatches.push(key);
+      } else if (key === 'historyRecordUnchanged') {
+        if (
+          Object.entries(workflow.expect.historyRecordUnchanged!).some(
+            ([id, status]) => observed.historyRecordUnchanged?.[id] !== status,
+          )
+        )
+          mismatches.push(key);
+      } else if (key === 'mustNotCite') {
         if (
           workflow.expect.mustNotCite!.some((doc) => observed.mustCite?.some((c) => c.doc === doc))
         )
           mismatches.push(key);
       } else if (
-        ['mustCite', 'calculations', 'approvalSnapshotFields'].includes(key) &&
+        [
+          'mustCite',
+          'calculations',
+          'approvalSnapshotFields',
+          'mustCiteRecords',
+          'exceptionRecordHas',
+          'evidenceOnlyNeverAuthority',
+          'fraudIndicatorsAtLeast',
+        ].includes(key) &&
         Array.isArray(expected)
       ) {
         if (

@@ -53,6 +53,8 @@ it('records inconsistent invoice arithmetic as a failed three-way finding', asyn
       po: tools.po('PO-55210'),
       vendor: tools.vendor('V-1007'),
       history: { exact: [], fuzzy: [] },
+      asOf: '2026-11-22',
+      signals: [],
       historyEvent: 'evt_1',
       chunks,
     },
