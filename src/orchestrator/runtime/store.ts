@@ -1,5 +1,7 @@
+import { checkOwner } from './lease.ts';
 import type { DatabaseSync } from 'node:sqlite';
 import {
+  durabilityFaults,
   runResult,
   type Review,
   type OutboxStatus,
@@ -8,7 +10,7 @@ import {
 } from '../../domain/types.ts';
 import type { Clock } from '../../adapters/clock.ts';
 import { transaction } from '../../adapters/migrate.ts';
-import { BudgetExceeded, type BudgetKind, type RunFailure } from '../errors.ts';
+import { WorkflowError, BudgetExceeded, type BudgetKind, type RunFailure } from '../errors.ts';
 
 export interface BudgetLimits {
   maxSteps: number;
@@ -24,6 +26,33 @@ export class Store {
     readonly redact: (s: string) => string,
     readonly log: (s: string) => void,
   ) {}
+  write<T>(work: () => T): T {
+    if (this.db.isTransaction) {
+      checkOwner(this);
+      return work();
+    }
+    return transaction(this.db, () => {
+      checkOwner(this);
+      return work();
+    });
+  }
+  simulation(id: string) {
+    const row = this.db.prepare('SELECT simulation_json FROM runs WHERE id=?').get(id)!;
+    return durabilityFaults.parse(JSON.parse(String(row.simulation_json)));
+  }
+  crash(
+    id: string,
+    point: 'crashAfterStep' | 'crashAfterOutboxSending' | 'crashAfterErpPost',
+    step?: string,
+  ) {
+    const settings = this.simulation(id);
+    if (!settings[point] || (point === 'crashAfterStep' && settings[point] !== step)) return;
+    delete settings[point];
+    this.write(() =>
+      this.db.prepare('UPDATE runs SET simulation_json=? WHERE id=?').run(this.json(settings), id),
+    );
+    throw new WorkflowError({ type: 'Transient', runId: id });
+  }
   json(value: unknown) {
     return JSON.stringify(value, (_key, field: unknown) =>
       typeof field === 'string' ? this.redact(field) : field,
@@ -32,9 +61,11 @@ export class Store {
   event(runId: string, meta: RequestMeta, type: string, fields: Record<string, unknown> = {}) {
     const ts = this.clock.now().toISOString();
     const json = this.json({ ...fields, ts, type, runId, correlationId: meta.correlationId });
-    const event = this.db
-      .prepare('INSERT INTO events(run_id,ts,event_json) VALUES(?,?,?)')
-      .run(runId, ts, json);
+    const event = this.write(() =>
+      this.db
+        .prepare('INSERT INTO events(run_id,ts,event_json) VALUES(?,?,?)')
+        .run(runId, ts, json),
+    );
     this.log(json);
     return 'evt_' + event.lastInsertRowid;
   }
@@ -46,11 +77,14 @@ export class Store {
   // Spends one unit of the persisted budget, or refuses when it is used up.
   // The counters live on the run row, so a resumed run inherits them.
   spend(runId: string, kind: BudgetKind) {
-    const changed = this.db
-      .prepare(
-        `UPDATE runs SET ${kind}_used=${kind}_used+1 WHERE id=? AND ${kind}_used<max_${kind}`,
-      )
-      .run(runId).changes;
+    const changed = this.write(
+      () =>
+        this.db
+          .prepare(
+            `UPDATE runs SET ${kind}_used=${kind}_used+1 WHERE id=? AND ${kind}_used<max_${kind}`,
+          )
+          .run(runId).changes,
+    );
     if (!changed) throw new BudgetExceeded(kind, this.limit(runId, kind));
   }
   // Checks that one unit is left without spending it.
@@ -69,7 +103,7 @@ export class Store {
   // Ends the run FAILED. A pending submit intent is cancelled, so nothing is
   // relayed later. An intent already SENDING is left for recovery.
   fail(runId: string, meta: RequestMeta, failure: RunFailure) {
-    transaction(this.db, () => {
+    this.write(() => {
       if (failure.reason === 'BUDGET_EXCEEDED')
         this.event(runId, meta, 'BUDGET_EXCEEDED', failure.detail);
       this.db
@@ -121,6 +155,7 @@ export class Store {
         toolCalls: row.tool_calls_used + ' of ' + row.max_tool_calls,
         modelCalls: row.model_calls_used + ' of ' + row.max_model_calls,
       },
+      erpLookupCalls: events.filter((e) => e.type === 'ERP_LOOKUP').length,
       failureReason: row.failure_reason === null ? null : String(row.failure_reason),
       outbox: out
         ? { status: out.status as OutboxStatus, postingRef: out.posting_ref as string | null }

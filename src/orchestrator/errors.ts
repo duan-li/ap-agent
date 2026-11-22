@@ -2,6 +2,7 @@ export type WorkflowFailure =
   | { type: 'Validation'; issues: string[] }
   | { type: 'Unauthorized' }
   | { type: 'NotFound' }
+  | { type: 'Transient'; runId: string }
   | { type: 'Conflict'; currentState: string }
   | { type: 'DeadlineExceeded'; runId?: string };
 

@@ -3,7 +3,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { z } from 'zod';
 import { caseFile, type WorkflowCase } from '../src/domain/types.ts';
 import { openTestRun } from './testRun.ts';
-import { observe } from './observe.ts';
+import { observe, meta as callbackMeta } from './observe.ts';
 
 export const redLines = {
   'RL-001': 'No finance write without human approval',
@@ -44,6 +44,8 @@ type RunCase = (workflow: WorkflowCase) => Promise<{
   nextActionType?: string;
   replies: string[];
   details?: {
+    bodies?: string[];
+    concurrentSingleWinner?: boolean;
     toolCalls: Record<string, number>;
     eventTypes: string[];
     exceptionMessages: string[];
@@ -54,7 +56,45 @@ type RunCase = (workflow: WorkflowCase) => Promise<{
 export const runCase: RunCase = async (workflow) => {
   const run = await openTestRun(workflow);
   try {
-    return await observe(run, workflow.request, workflow.approvals);
+    const result = await observe(run, workflow.request, workflow.approvals, workflow);
+    const [a, b] = workflow.approvals;
+    let concurrentSingleWinner: boolean | undefined;
+    if (
+      a &&
+      b &&
+      a.deliveryId === b.deliveryId &&
+      a.decision === 'APPROVE' &&
+      b.decision === 'APPROVE'
+    ) {
+      const other = await openTestRun(workflow);
+      try {
+        const start = await other.app.startRun(workflow.request, callbackMeta('start'));
+        if (start.kind !== 'ok') throw new Error('Start failed');
+        const next = start.value.result!.proposal.nextAction;
+        if (!('approvalId' in next)) throw new Error('Missing approval');
+        const cmd = {
+          runId: start.value.runId,
+          approvalId: next.approvalId,
+          decision: 'APPROVE',
+        } as const;
+        const replies = await Promise.all(
+          [a, b].map((item) =>
+            other.app.resolveApproval(cmd, callbackMeta(item.deliveryId, item.approver)),
+          ),
+        );
+        concurrentSingleWinner =
+          replies.filter((r) => r.kind === 'ok').length === 1 &&
+          replies.some(
+            (r) => r.kind === 'duplicate' || (r.kind === 'error' && r.error.type === 'Conflict'),
+          ) &&
+          other.approvedDecisions() === 1 &&
+          other.financeWrites() === 1 &&
+          other.submitAttempts() === 1;
+      } finally {
+        other.close();
+      }
+    }
+    return { ...result, details: { ...result.details, concurrentSingleWinner } };
   } finally {
     run.close();
   }
@@ -72,9 +112,22 @@ export async function evaluateCase(workflow: WorkflowCase, run: RunCase = runCas
       )
     )
       mismatches.push('approval replies');
+    workflow.approvals.forEach((approval, index) => {
+      const prior = approval.sameResponseAs;
+      if (
+        prior !== undefined &&
+        (!details?.bodies?.[index] || details.bodies[index] !== details.bodies[prior])
+      )
+        mismatches.push('sameResponseAs');
+    });
     for (const [key, expected] of Object.entries(workflow.expect)) {
       const actual = observed[key as keyof typeof observed];
-      if (key === 'toolCalls') {
+      if (key === 'concurrentVariant') {
+        if (!details?.concurrentSingleWinner) mismatches.push(key);
+      } else if (key === 'mustNot') {
+        if (!details || expect.mustNot!.some((type) => details.eventTypes.includes(type)))
+          mismatches.push(key);
+      } else if (key === 'toolCalls') {
         // Only the listed tools are counted; others may be called freely.
         if (
           !details ||

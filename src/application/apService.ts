@@ -1,3 +1,5 @@
+import { deliver, validateCallback } from './inbox.ts';
+import { withLease } from '../orchestrator/runtime/lease.ts';
 import type { Flow } from '../orchestrator/flow.ts';
 import { ApplicationError, toAppError, type AppError } from './errors.ts';
 import { authorised } from '../orchestrator/approvals.ts';
@@ -7,20 +9,14 @@ import {
   type RequestMeta,
   type ApprovalCommand,
   type RunView,
-  type Review,
+  type approvalResponse,
   request,
-  approvalCommand,
   requestMetadata,
 } from '../domain/types.ts';
 
 export type StartRunCommand = z.input<typeof request>;
 
-export interface ApprovalResponse {
-  runId: string;
-  approvalId: string;
-  decision: ApprovalCommand['decision'];
-  status: Review['status'];
-}
+export type ApprovalResponse = z.infer<typeof approvalResponse>;
 
 export type { RequestMeta, ApprovalCommand, RunView } from '../domain/types.ts';
 export type { AppError } from './errors.ts';
@@ -59,19 +55,43 @@ export function service(flow: Flow, data: ReturnType<typeof backends>): ApServic
       }),
     getRun: (id, meta) => execute(meta, () => flow.get(z.string().min(1).parse(id))),
     resume: (id, meta) => execute(meta, () => flow.resume(z.string().min(1).parse(id), meta)),
-    resolveApproval: (cmd: ApprovalCommand, meta) =>
-      execute(meta, () =>
-        flow.decide(approvalCommand.parse(cmd), meta, (role, amount, vendorId) =>
-          data.vendors.find((v) => v.vendorId === vendorId)?.createdBy === meta.actor.id
-            ? null
-            : authorised(
-                data.register,
-                meta.actor.id,
-                role,
-                amount,
-                flow.store.clock.now().toISOString().slice(0, 10),
+    async resolveApproval(input, meta) {
+      const outer = await execute(meta, () => {
+        const cmd = validateCallback(flow.store, input, meta);
+        return withLease(flow.store, cmd.runId, meta.deadline, () =>
+          deliver(
+            flow.store,
+            cmd,
+            meta,
+            (markApplied) =>
+              flow.decide(
+                cmd,
+                meta,
+                (role, amount, vendorId) =>
+                  data.vendors.find((v) => v.vendorId === vendorId)?.createdBy === meta.actor.id
+                    ? null
+                    : authorised(
+                        data.register,
+                        meta.actor.id,
+                        role,
+                        amount,
+                        flow.store.clock.now().toISOString().slice(0, 10),
+                      ),
+                markApplied,
               ),
-        ),
-      ),
+            async () => {
+              const view = await flow.continueRun(cmd.runId, meta);
+              return {
+                runId: cmd.runId,
+                approvalId: cmd.approvalId,
+                decision: cmd.decision,
+                status: view.status,
+              };
+            },
+          ),
+        );
+      });
+      return outer.kind === 'error' ? outer : outer.value;
+    },
   };
 }
